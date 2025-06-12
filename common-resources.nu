@@ -20,3 +20,13 @@ export def "mkscoped job" [
 ]: nothing -> int {
   mkscoped -s $scope {job spawn $closure} {job kill $in}
 }
+
+# Schedule a closure to run at the end of a scope
+export def "defer" [
+  --scope (-s): string # See 'mkscoped doc'
+  closure: closure # Something to run at the end of the scope
+    # Will be fed the input to defer
+] {
+  let x = $in
+  mkscoped -s $scope {"deferred-closure"} {$x | do $closure}
+}
