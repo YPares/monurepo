@@ -1,37 +1,48 @@
 use std log
 
-# We start a job that will maintain a mutable set of finalizers,
-# indexed per scope key
-def rescope-job [] {
-  log debug $"rescope-job \(id (job id)) started"
-  mut finalizers = {}
-  mut job_asking_to_stop = -1 # job ids are positive or null
-  while $job_asking_to_stop < 0 {
+# We start a job that will maintain stacks of closures,
+# each one indexed by some arbitrary string key
+def run-closure-store [] {
+  log debug $"Closure store \(job (job id)): started"
+  mut closure_store = {}
+  loop {
     match (job recv) {
-      {add: $fin, to: $key} => {
-        $finalizers = $finalizers |
-          upsert $key {default [] | prepend $fin}
+      {under: $key, register: $cls} => {
+        $closure_store = $closure_store |
+          upsert $key {default [] | prepend $cls}
       }
-      {exit: $key} => {
-        for fin in ($finalizers | get -i $key) {
-          do $fin
+      {run: $key, stop: $should_stop, reply-to: $job_id} => {
+        try {
+          for cls in ($closure_store | get $key) {
+            try {
+              do $cls
+            } catch {|exc|
+              log error $"Closure store \(job (job id)): some closure under key ($key) failed with: ($exc.msg)"
+            }
+          }
+          $closure_store = $closure_store | reject $key
+        } catch {
+          log debug $"Closure store \(job (job id)): no closures stored under key ($key)"
         }
-        $finalizers = $finalizers | reject -i $key
-      }
-      {stop: $job_id} => {
-        $job_asking_to_stop = $job_id
+        if $should_stop {
+          match $closure_store {
+            {} => {
+              log debug $"Closure store \(job (job id)): stopping"
+            }
+            _ => {
+              log error $"Closure store \(job (job id)): stopping with unexecuted closures under key\(s) ($closure_store | columns)"
+            }
+          }
+        }
+        if $job_id != null {
+          "done" | job send $job_id
+        }
+        if $should_stop {
+          break
+        }
       }
     }
   }
-  match $finalizers {
-    {} => {
-      log debug $"rescope-job \(id (job id)) stopped gracefully"
-    }
-    _ => {
-      log error $"rescope-job \(id (job id)) stopped with unexecuted finalizers for scopes ($finalizers | columns)"
-    }
-  }
-  "ok" | job send $job_asking_to_stop
 }
 
 # Define a resource scope, ie. a section of code at the end of which
@@ -43,13 +54,16 @@ def rescope-job [] {
 export def rescope [
   --prefix (-p): string
     # Optionally add a prefix to the key that will identify this scope
+  --async
+    # When the scope ends, will not wait for all closures to be completed
+    # before continuing
   fn: closure
     # Will be fed rescope's pipeline input.
     # Will be executed with a string key as an argument, to be used as the
     # '--scope' argument for subsequent 'mkscoped' calls
 ] {
-  let controls_rescope_job = if $env.rescope?.job-id? == null {
-    $env.rescope.job-id = job spawn --tag "rescope-job" { rescope-job }
+  let controls_closure_store_job = if $env.rescope?.closure-store-job-id? == null {
+    $env.rescope.closure-store-job-id = job spawn --tag "closure-store" { run-closure-store }
     true
   } else { false }
 
@@ -57,21 +71,23 @@ export def rescope [
   $env.rescope.scopes = $env.rescope?.scopes? | default [] | prepend $scope_key
 
   let res = try {
-    log debug $"Beginning of scope '($scope_key)'"
+    log debug $"Scope ($scope_key): start"
     $in | do $fn $scope_key | {ok: $in}
   } catch {|exc|
     log debug $"Scope ($scope_key): exception caught. Cleaning up early"
     {exc: $exc}
   }
 
-  {exit: $scope_key} | job send $env.rescope.job-id
-
-  if $controls_rescope_job {
-    {stop: (job id)} | job send $env.rescope.job-id
-    # We wait until the rescope-job stops gracefully and signals us:
+  {
+    run: $scope_key
+    stop: $controls_closure_store_job
+    reply-to: (if (not $async) {(job id)})
+  } | job send $env.rescope.closure-store-job-id
+  if (not $async) {
     job recv
   }
-  log debug $"End of scope '($scope_key)'"
+
+  log debug $"Scope ($scope_key): end"
   match $res {
     {ok: $x} => { $x }
     {exc: $exc} => {
@@ -93,25 +109,21 @@ export def mkscoped [
     # A closure to clean up the resource. Will be fed as input whatever 'acquire' returns
 ] {
   if ($env.rescope?.scopes? | is-empty) {
-    error make {msg: "'mkscoped' cannot be called here, we are not within a 'rescope'"}
+    error make {msg: "'mkscoped' cannot be called here: we are not in a closure run by 'rescope'"}
   }
   let scope_key = $scope | default ($env.rescope.scopes | first)
   if ($env.rescope.scopes has $scope_key) {
     let res = $in | do $acquire
     let res_id = try { $"($res)" } catch { $"unprintable-(random chars)" }
-    log debug $"In scope '($scope_key)': ($res_id) acquired"
+    log debug $"Scope ($scope_key): ($res_id) acquired"
     {
-      add: {
-        try {
-          $res | do $finalize
-          log debug $"In scope ($scope_key): ($res_id) finalized"
-        } catch {|exc|
-          log error $"In scope ($scope_key): could not finalize ($res_id): ($exc)"
-        }
+      under: $scope_key
+      register: {
+        $res | do $finalize
+        log debug $"Scope ($scope_key): ($res_id) finalized"
       }
-      to: $scope_key
-    } | job send $env.rescope.job-id
+    } | job send $env.rescope.closure-store-job-id
   } else {
-    error make {msg: $"Scope '($scope_key)' does not exist"}
+    error make {msg: $"No scope with key '($scope_key)' exists"}
   }
 }

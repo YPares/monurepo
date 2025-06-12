@@ -3,7 +3,7 @@ export use ./common-resources.nu *
 
 export-env {
   $env.rescope = {
-    job-id: null
+    closure-store-job-id: null
     scopes: []
   }
 }
