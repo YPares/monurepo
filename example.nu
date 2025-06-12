@@ -1,20 +1,9 @@
-# rescope.nu
-
-Scoped resources and deferred closure executions for Nushell.
-
-Experimental.
-
-## Example
-
-(You can run it from this folder with `nu example.nu`)
-
-```nu
-use rescope.nu *
+use . *
 use std log
 
 log set-level 0 # activate debug logs
 
-rescope {|sc1|
+rescope -p sc1 {|sc1|
   # We open a temp folder whose finalization (removal)
   # is scheduled at the end of this scope (closure):
   let path = mkscoped file -s $sc1 { mktemp --directory }
@@ -22,7 +11,7 @@ rescope {|sc1|
   # We schedule to print "Bye!" at the end of this closure:
   "Bye!" | defer -s $sc1 { print $in }
 
-  rescope {|sc2|
+  rescope -p sc2 {|sc2|
     # Here, no `-s` is given: finalizers are by defaut attached to the
     # innermost scope. So here, sc2: 
     let job1 = mkscoped job { sleep 10sec }
@@ -33,4 +22,3 @@ rescope {|sc1|
 
 } # End of sc1: $job2 gets killed, then "Bye!" is printed, then $path gets deleted
   # (Resources are always finalized in the order inverse to their creation)
-```

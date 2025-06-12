@@ -8,7 +8,7 @@ export def "mkscoped file" [
   closure: closure
     # A closure that creates and return a new path, for instance a call to 'mktemp'
 ]: nothing -> path {
-  mkscoped -s $scope $closure {rm -rf $in}
+  mkscoped -t file -s $scope $closure {rm -rf $in}
 }
 
 # Create a resource corresponding to a nushell job
@@ -18,7 +18,7 @@ export def "mkscoped job" [
   --scope (-s): string # See 'mkscoped' doc
   closure: closure # See 'job spawn doc'
 ]: nothing -> int {
-  mkscoped -s $scope {job spawn $closure} {job kill $in}
+  mkscoped -t job -s $scope {job spawn $closure} {job kill $in}
 }
 
 # Schedule a closure to run at the end of a scope
@@ -28,5 +28,5 @@ export def "defer" [
     # Will be fed the input to defer
 ] {
   let x = $in
-  mkscoped -s $scope {"deferred-closure"} {$x | do $closure}
+  mkscoped -t deferred-closure -s $scope {} {$x | do $closure}
 }

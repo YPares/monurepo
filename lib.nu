@@ -3,7 +3,7 @@ use std log
 # We start a job that will maintain stacks of closures,
 # each one indexed by some arbitrary string key
 def run-closure-store [] {
-  log debug $"Closure store \(job (job id)): started"
+  log debug $"Closure store \(job (job id)): start"
   mut closure_store = {}
   loop {
     match (job recv) {
@@ -27,7 +27,7 @@ def run-closure-store [] {
         if $should_stop {
           match $closure_store {
             {} => {
-              log debug $"Closure store \(job (job id)): stopping"
+              log debug $"Closure store \(job (job id)): end"
             }
             _ => {
               log error $"Closure store \(job (job id)): stopping with unexecuted closures under key\(s) ($closure_store | columns)"
@@ -103,6 +103,8 @@ export def rescope [
 export def mkscoped [
   --scope (-s): string
     # Which scope to attribute the resource to. By default it will be the innermost scope
+  --tag (-t): string
+    # An optional tag to help identify the resource activity in the logs
   acquire: closure
     # A closure to create the resource. Will be fed mkscoped's pipeline input
   finalize: closure
@@ -112,15 +114,16 @@ export def mkscoped [
     error make {msg: "'mkscoped' cannot be called here: we are not in a closure run by 'rescope'"}
   }
   let scope_key = $scope | default ($env.rescope.scopes | first)
+  let tag = if $tag != null {$"[($tag)] "} else {""}
   if ($env.rescope.scopes has $scope_key) {
     let res = $in | do $acquire
-    let res_id = try { $"($res)" } catch { $"unprintable-(random chars)" }
-    log debug $"Scope ($scope_key): ($res_id) acquired"
+    let res_id = try { $"($res)" } catch { $"unprintable" }
+    log debug $"Scope ($scope_key): ($tag)($res_id) acquired"
     {
       under: $scope_key
       register: {
         $res | do $finalize
-        log debug $"Scope ($scope_key): ($res_id) finalized"
+        log debug $"Scope ($scope_key): ($tag)($res_id) finalized"
       }
     } | job send $env.rescope.closure-store-job-id
   } else {
