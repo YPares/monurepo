@@ -25,13 +25,10 @@ def run-closure-store [] {
           log debug $"Closure store \(job (job id)): no closures stored under key ($key)"
         }
         if $should_stop {
-          match $closure_store {
-            {} => {
+          if ($closure_store | is-empty) {
               log debug $"Closure store \(job (job id)): end"
-            }
-            _ => {
+          } else {
               log error $"Closure store \(job (job id)): stopping with unexecuted closures under key\(s) ($closure_store | columns)"
-            }
           }
         }
         if $job_id != null {
