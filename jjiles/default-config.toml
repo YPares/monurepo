@@ -1,0 +1,179 @@
+############################################################################
+##
+## These settings will be overriden by those in your user jj config.toml
+## (`$HOME/.config/jj/config.toml`), and then by those in your local
+## repository config.toml (`.jj/repo/config.toml`). So if you want per-repo
+## color settings, keybindings, etc, JJ has you covered.
+##
+## You can copy them to your JJ config as a starting point.
+##
+############################################################################
+
+
+## Watcher settings. This is meant to be configured per repository,
+## and can be repeated for each folder in the repository to watch
+#[[jjiles.watched]]
+##
+## The path (relative to project root) to watch:
+#folder = "src"
+##
+## A glob pattern. Which files should be watched for changes in this folder
+## (all by default):
+#pattern = "**/*.rs" 
+##
+## A list of glob patterns. Any path matching an entry should be ignored when
+## modified (empty by default). Additionally, any path matching an entry in
+## one of your .gitignore files will be ignored:
+#ignore = ["**/*.bck"]
+
+## Fetcher settings. This is meant to be configured per repository,
+## and can be repeated for each git remote to fetch regularly
+#[[jjiles.fetched]]
+##
+## The remote to fetch:
+#remote = "origin"
+##
+## A list of glob patterns. Which branches to fetch from this remote.
+## Will fetch everything if not specified:
+#branches = ["*"]
+##
+## How often should we fetch it. It should be parseable as a nushell duration type.
+## Will default to 5min if not specified:
+#every = "1min"
+
+## Global layout settings:
+[jjiles.interface]
+## Which fzf style to use (minimal, default or full):
+fzf-style = "default"
+## Where to place the header (showing the breadcrumbs) and the search bar:
+menu-position = "top"
+## Whether the evolog is browsable by default or not:
+evolog-toggled-on = false
+## Whether the search bar is visible by default or not:
+show-searchbar = true
+## Whether the keybidings are shown or not:
+show-keybindings = true
+## Whether to wrap long lines in the preview panel by default:
+preview-line-wrapping = false
+
+## Which style of borders to draw around the various elements of the interface.
+## See `man fzf` for more info:
+[jjiles.interface.borders]
+header = "sharp"
+input = "none"
+list = "none"
+preview = "line"
+
+## Which JJ templates are to be used by jjiles:
+[jjiles.templates]
+## The JJ template to be used by the OpLog view, and applied for each operation listed.
+## If not set, will default to the 'templates.op_log' of your jj config, to stick to
+## the behaviour of 'jj op log':
+#op_log = "builtin_op_log_compact"
+ 
+## The JJ template to be used by the RevLog view, and applied for each revision listed.
+## If not set, will default to the 'templates.log' of your jj config, to stick to
+## the behaviour of 'jj log':
+#rev_log = "builtin_log_compact"
+
+## The JJ template to be used by the EvoLog view, and applied for each commit listed.
+## If not set, will default to the 'templates.log' of your jj config, to stick to
+## the behaviour of 'jj evolog':
+#evo_log = "builtin_log_compact"
+
+## The JJ template to be used as a header in the side panel when previewing a revision
+## (from the RevLog view).
+##
+## `config("width")` is provided by jjiles and corresponds to the width (in characters) of
+## the panel in which the template will be used
+rev_preview = '''
+  builtin_log_detailed ++ diff.stat(config("width").as_integer())
+'''
+
+## The JJ template to be used as a header in the side panel when previewing a commit
+## (from the EvoLog view):
+evo_preview = '''
+  builtin_log_detailed ++ diff.summary()
+'''
+
+## The JJ template to be used as a header in the side panel when previewing a specific
+## file diff from a specific revision/commit (from the Files view):
+##
+## `%FILE%` will be replaced by jjiles with the file currently being previewed. It cannot
+## be passed via `config` (like width) because the diff function expects a string literal:
+file_preview = '''
+  builtin_log_oneline ++ "\n" ++ self.diff(%FILE%).summary()
+'''
+
+## Control how the diffs (in the preview panel) will be rendered:
+[jjiles.diff]
+## JJiles default behaviour is to generate single-column diffs, and to switch
+## to double-column when it has enough space (ie. when the preview panel has at
+## least a certain width, in number of characters per line). This parameter
+## defines that width threshold. If you don't like double-column diffs,
+## just set it to some arbitrary high number:
+double-column-threshold = 160
+
+## Colors used in the rest of the config can be a key in the 'theme-mappings'
+## section below. In such case, the final color will depend on system
+## theme. This is for users who want their configuration to look OK whatever
+## the system theme:
+[jjiles.colors.theme-mappings]
+opaque.dark = "black" ## if system theme is "dark", "opaque" will be replaced by "black"
+opaque.light = "white"
+## No default. If the system theme cannot be detected, every setting using
+## "opaque" will be ignored
+
+high-contrast.dark = "#ffffff"
+high-contrast.light = "#000000"
+high-contrast.default = "#888888" ## here we provide a default to use if the system theme cannot be detected
+
+low-contrast.dark = "#373737"
+low-contrast.light = "#dfdfdf"
+
+## Important: the colors in this section are not for fzf. They need to be valid ansi colors
+## See nushell command `ansi --list`:
+[jjiles.colors.elements]
+filepath = "yellow" # The color of the "Files" view and of the file paths displayed in that view
+
+## Colors will be passed to fzf --color, after being potentially remapped first.
+## See `man fzf` for more info:
+[jjiles.colors.fzf]
+header-border = "low-contrast"
+header-bg = "opaque"
+preview-border = "high-contrast"
+preview-bg = "opaque"
+list-border = "cyan"
+pointer = "high-contrast"
+
+## Bindings will be passed straight to fzf --bind.  Note that if you add
+## mappings for keys that conflict with the main jjiles keybindings (those
+## directly defined in jjiles' code, which are not remappable), jjiles will
+## show an error when starting.
+##
+## See `man fzf` for more info:
+[jjiles.bindings.fzf]
+## Clear searchbar, or (if already empty) qui without printing anything:
+"ctrl-c" = "cancel"
+## Quit and print the currently selected commit/operation:
+"ctrl-q,ctrl-g" = "accept"
+## Scroll log list with mouse wheel (repeated to scroll faster):
+scroll-up = "offset-up+offset-up+offset-up"
+scroll-down = "offset-down+offset-down+offset-down"
+## Scroll preview panel with mouse wheel (repeated to scroll faster):
+preview-scroll-up = "preview-up+preview-up+preview-up"
+preview-scroll-down = "preview-down+preview-down+preview-down"
+## Page up/down in log list:
+"alt-down,alt-j" = "page-down"
+"alt-up,alt-k" = "page-up"
+## First/last line in log list:
+"alt-left,alt-h" = "first"
+"alt-right,alt-l" = "last"
+## Page up/down in preview panel:
+page-down = "preview-page-down"
+page-up = "preview-page-up"
+## Scroll by half a page in preview panel:
+ctrl-d = "preview-half-page-down"
+ctrl-u = "preview-half-page-up"
+## Toggle the wrapping of long lines in the preview panel:
+ctrl-w = "toggle-preview-wrap"
