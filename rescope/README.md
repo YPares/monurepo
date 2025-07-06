@@ -1,4 +1,4 @@
-# rescope.nu
+# rescope
 
 Scoped resources and deferred closure executions for Nushell.
 
