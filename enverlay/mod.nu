@@ -101,6 +101,7 @@ export def render [] {
     str join $"(ansi yellow)|(ansi reset)" | if ($overlays | length) > $num_shown_overlays {
       $"($in)(ansi yellow)|(ansi reset)…"
     } else {$in}
+
   $"($direnv_auto_bit)($envs_bit)($overlays_bit)"
 }
 
