@@ -12,9 +12,10 @@ export-env {
   use std/dirs
 
   $env.prowser = {
-    __previous_dirs_state: null
-    __current_snap_name: null
-    depth: 999
+    __prev_dirs_state: null
+    __cur_snap_name: null
+    __cur_depth_idx: 0
+    depth_values: [999,3,2,1]
     excluded: [
       "**/.*/*/**" # Do not recurse into dot directories
     ]
@@ -116,7 +117,7 @@ def --env __par-each [closure: closure] {
 }
 
 export def "snap current-state" [] {
-  {list: $env.DIRS_LIST, pos: $env.DIRS_POSITION, name: $env.prowser.__current_snap_name}
+  {list: $env.DIRS_LIST, pos: $env.DIRS_POSITION, name: $env.prowser.__cur_snap_name}
 }
 
 def "snap saved" [] {
@@ -136,7 +137,7 @@ export def "snap list" [] {
 }
 
 def --env "snap set" [name snap] {
-  $env.prowser.__current_snap_name = $name
+  $env.prowser.__cur_snap_name = $name
   $env.DIRS_LIST = $snap.list
   $env.DIRS_POSITION = $snap.pos
   reset
@@ -153,23 +154,23 @@ export def --env snap [
   --delete (-d) # Delete a snap from disk
   --previous (-p) # Reset dirs state to the one before last snap was loaded
 ] {
-  let name = $name | default $env.prowser.__current_snap_name? | default "default"
+  let name = $name | default $env.prowser.__cur_snap_name? | default "default"
   if $write {
     accept
     snap saved |
       upsert $name (snap current-state | reject name) |
       save -f $snaps_file
     print $"Saved to snapshot '($name)'"
-    $env.prowser.__current_snap_name = $name
+    $env.prowser.__cur_snap_name = $name
   } else if $delete {
     snap saved | reject $name | save -f $snaps_file
     print $"Deleted snapshot '($name)'"
-    if $name == $env.prowser.__current_snap_name {
-      $env.prowser.__current_snap_name = "default"
+    if $name == $env.prowser.__cur_snap_name {
+      $env.prowser.__cur_snap_name = "default"
     }
   } else if $previous {
-    let state_to_restore = $env.prowser.__previous_dirs_state
-    $env.prowser.__previous_dirs_state = snap current-state
+    let state_to_restore = $env.prowser.__prev_dirs_state
+    $env.prowser.__prev_dirs_state = snap current-state
     if $state_to_restore != null {
       let name_to_restore = $state_to_restore.name?
       snap set $name_to_restore $state_to_restore
@@ -178,30 +179,31 @@ export def --env snap [
       error make {msg: "No previous snap known in this shell"}
     }
   } else {
-    let verb = if $name == $env.prowser.__current_snap_name {"Reloaded"} else {"Loaded"}
-    $env.prowser.__previous_dirs_state = snap current-state
+    let verb = if $name == $env.prowser.__cur_snap_name {"Reloaded"} else {"Loaded"}
+    $env.prowser.__prev_dirs_state = snap current-state
     snap set $name (snap saved | get $name)
     print $"($verb) snapshot '($name)'"
   }
 }
 
-export def --env toggle-depth [] {
-  $env.prowser.depth = match $env.prowser.depth {
-    1 => 999
-    _ => 1
-  }
+export def selected-depth [] {
+  $env.prowser.depth_values | get $env.prowser.__cur_depth_idx
+}
+
+export def --env switch-depth [] {
+  $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + 1) mod ($env.prowser.depth_values | length)
 }
 
 export def "glob all" [] {
-  glob -l -d $env.prowser.depth -e $env.prowser.excluded $in
+  glob -l -d (selected-depth) -e $env.prowser.excluded $in
 }
 
 export def "glob files" [] {
-  glob -lD -d $env.prowser.depth -e $env.prowser.excluded $in
+  glob -lD -d (selected-depth) -e $env.prowser.excluded $in
 }
 
 export def "glob dirs" [] {
-  glob -lF -d $env.prowser.depth -e $env.prowser.excluded $in
+  glob -lF -d (selected-depth) -e $env.prowser.excluded $in
 }
 
 export def select-paths [multi: bool, --prompt: string] {
@@ -233,7 +235,7 @@ export def select-paths [multi: bool, --prompt: string] {
         "
         --preview-window "right,60%,noinfo,border-left"
         --color "scrollbar:blue"
-        --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-q:abort"
+        --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-r:cancel,alt-q:abort"
         --bind "alt-h:first,alt-j:down,alt-k:up,alt-l:accept"
         --bind "alt-left:first,alt-right:accept,alt-up:half-page-up,alt-down:half-page-down"
         --bind "ctrl-alt-k:half-page-up,ctrl-alt-j:half-page-down"
@@ -348,7 +350,7 @@ export def render [] {
     ) | $"(ansi ($color))($in)(ansi reset)"
   } |
     str join $"(ansi yellow)|(ansi reset)" |
-    $"(ansi reset)(if $env.prowser.depth == 1 {'[↳1]'})($in)"
+    $"(ansi reset)(if $env.prowser.__cur_depth_idx != 0 {$'[↳(selected-depth)]'})($in)"
 }
 
 # To be called in your TRANSIENT_PROMPT_COMMAND
@@ -380,7 +382,7 @@ export def default-keybindings [
 
     [control  char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
     [alt      char_f         (cmd $'($prefix)browse --multi --prompt by-mod-date {($prefix)glob files | ($prefix)sort-by-mod-date}')]
-    [alt      char_r         (cmd $'($prefix)toggle-depth')]
+    [alt      char_r         (cmd $'($prefix)switch-depth')]
     [alt      [left char_h]  (cmd $'($prefix)left')]
     [alt      [right char_l] (cmd $'($prefix)right')]
     [alt      [up char_k]    (cmd $'($prefix)up')]
