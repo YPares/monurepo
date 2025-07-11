@@ -382,21 +382,21 @@ export def default-keybindings [
     # Set this depending on how prowser is imported in your config.nu
 ] {
   [
-    [modifier keycode        event];
+    [modifier    keycode        event];
 
-    [control  char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
-    [alt      char_f         (cmd $'($prefix)browse --multi --prompt by-mod-date {($prefix)glob files | ($prefix)sort-by-mod-date}')]
-    [alt      char_r         (cmd $'($prefix)switch-depth')]
-    [alt      [left char_h]  (cmd $'($prefix)left')]
-    [alt      [right char_l] (cmd $'($prefix)right')]
-    [alt      [up char_k]    (cmd $'($prefix)up')]
-    [alt      [char_j down]  (cmd $'($prefix)down')]
-    [alt      char_s         (cmd $'($prefix)accept')]
-    [alt      char_z         (cmd $'($prefix)reset')]
-    [alt      char_d         (cmd $'($prefix)drop')]
-    [alt      char_q         (cmd $'($prefix)drop --others')]
-    [alt      char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right')]
-    [alt      char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left')]
+    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
+    [alt         char_f         (cmd $'($prefix)browse --multi --prompt by-mod-date {($prefix)glob files | ($prefix)sort-by-mod-date}')]
+    [alt         char_r         (cmd $'($prefix)switch-depth')]
+    [alt         [left char_h]  (cmd $'($prefix)left')]
+    [alt         [right char_l] (cmd $'($prefix)right')]
+    [alt         [up char_k]    (cmd $'($prefix)up')]
+    [alt         [char_j down]  (cmd $'($prefix)down')]
+    [alt         char_s         (cmd $'($prefix)accept')]
+    [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right')]
+    [alt         char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left')]
+    [alt         char_z         (cmd $'($prefix)reset')]
+    [control_alt char_d         (cmd $'($prefix)drop')]
+    [control_alt char_q         (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
 
