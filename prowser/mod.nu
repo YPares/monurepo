@@ -21,9 +21,9 @@ export-env {
     ]
     colors: {
       separator: yellow
-      selected: light_green
-      selected_modified: yellow
-      unselected: dark_gray
+      active: light_green
+      active_modified: yellow
+      inactive: dark_gray
       depth_indicator: blue
     }
     get_local_root: {|path| null}
@@ -335,33 +335,25 @@ export def --env down [] {
 
 # To be called in your PROMPT_COMMAND
 #
-# Shows the opened dirs and highlights the current ones
+# Shows the opened 'std dirs' and highlights the current one
 export def render [] {
-  let width = (term size).columns
-
   let ds = dirs
   let highlight_active = ($ds | length) > 1
   $ds | each {|d|
     let color = if $d.active {
       if $d.path == ($env.DIRS_LIST | get $env.DIRS_POSITION) {
-        $env.prowser.colors.selected
+        $env.prowser.colors.active
       } else {
-        $env.prowser.colors.selected_modified
+        $env.prowser.colors.active_modified
       }
     } else {
-      $env.prowser.colors.unselected
+      $env.prowser.colors.inactive
     }
     let local_root = if $d.active {
       try { do $env.prowser.get_local_root $d.path }
     }
     let num_elems_to_keep = if $d.active {
-      if $width >= 160 or ($ds | length) <= 2 {
-        3
-      } else if $width >= 80 and ($ds | length) <= 4 {
-        2
-      } else {
-        1
-      }
+      [(5 - ($ds | length)) 2] | math max
     } else {
       1
     }
