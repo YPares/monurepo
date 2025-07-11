@@ -168,13 +168,17 @@ export def --env snap [
     if $name == $env.prowser.__cur_snap_name {
       $env.prowser.__cur_snap_name = "default"
     }
-  } else if $previous {
+  } else if ($previous or $name == "-") {
     let state_to_restore = $env.prowser.__prev_dirs_state
     $env.prowser.__prev_dirs_state = snap current-state
     if $state_to_restore != null {
       let name_to_restore = $state_to_restore.name?
       snap set $name_to_restore $state_to_restore
-      print $"Back to previous state \(was based on snap '($name_to_restore)')"
+      if $name_to_restore != null {
+        print $"Back to previous state \(based on snap '($name_to_restore)')"
+      } else {
+        print "Back to previous state"
+      }
     } else {
       error make {msg: "No previous snap known in this shell"}
     }
