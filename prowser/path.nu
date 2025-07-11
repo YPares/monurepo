@@ -5,32 +5,48 @@ def __slice [slice?: range] {
 }
 
 export def shorten [
-  --keep: number
+  --keep: number = 5
   --local-root: path
   --color: string
   --highlight
 ] {
   let path = $in | path expand -n
-  let slice = if $keep == null {(0..)} else {((-1 * $keep)..)}
   let clr_codes = if ($color != null) {{
-    root: (ansi $"($color)_underline")
+    root: (
+      if $highlight {
+        $"(ansi $"($color)_reverse")(ansi attr_italic)(ansi attr_underline)"
+      } else {
+        $"(ansi $"($color)_italic")(ansi attr_underline)"
+      }
+    )
     path: (if $highlight {ansi $"($color)_reverse"} else {ansi $color})
     reset: (ansi reset)
   }} else {{}}
-  if $local_root == null {
-    $path | str replace $env.HOME "~" | __slice $slice | $"($clr_codes.path?)($in)"
-  } else {
-    let elems = $path | path relative-to $local_root | path split
-    let local_root = $"($clr_codes.root?)($local_root | path basename)($clr_codes.reset?)($clr_codes.path?)"
-    let elems = if ($elems | is-empty) {
-      [$local_root "."]
-    } else if ($elems | length) <= $keep {
-      [$local_root ...$elems]
+  let elems = if $local_root != null {
+    $path | path relative-to $local_root | path split
+  } else {[]}
+  if ($elems | is-empty) {
+    let elems = $path | str replace $env.HOME "~" | path split | slice ((-1 * $keep)..)
+    if $local_root != null {
+      [
+        $"($clr_codes.path?)($elems | slice (..-2) | path join)"
+        $"($clr_codes.reset?)($clr_codes.root?)($elems | last)($clr_codes.reset?)"
+      ] | path join
     } else {
-      [$local_root "…" ...($elems | slice $slice)]
+      $elems | $"($clr_codes.path?)($in | path join)($clr_codes.reset?)"
     }
-    $elems | path join
-  } | $"($in)($clr_codes.reset?)"
+  } else {
+    let keep = [($keep - 1) 1] | math max
+    let shortened = if ($elems | length) <= $keep {
+      $elems
+    } else {
+      ["…"] ++ ($elems | slice ((-1 * $keep)..))
+    } | path join
+    [
+      $"($clr_codes.root?)($local_root | path basename)($clr_codes.reset?)($clr_codes.path?)"
+      $"($shortened)($clr_codes.reset?)"
+    ] | path join
+  }
 }
 
 export alias slice = __slice
