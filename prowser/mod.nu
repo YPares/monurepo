@@ -26,6 +26,7 @@ export-env {
       unselected: dark_gray
       depth_indicator: blue
     }
+    get_local_root: {|path| null}
   }
 }
 
@@ -335,42 +336,48 @@ export def render [] {
   let width = (term size).columns
 
   let ds = dirs
-  let reverse_bit = if ($ds | length) == 1 {""} else {"_reverse"}
+  let highlight_active = ($ds | length) > 1
   $ds | each {|d|
     let color = if $d.active {
       if $d.path == ($env.DIRS_LIST | get $env.DIRS_POSITION) {
-        $"($env.prowser.colors.selected)($reverse_bit)"
+        $env.prowser.colors.selected
       } else {
-        $"($env.prowser.colors.selected_modified)($reverse_bit)"
+        $env.prowser.colors.selected_modified
       }
     } else {
       $env.prowser.colors.unselected
     }
-    $d.path | path shorten --slice (
-      if $d.active {
-        if $width >= 160 or ($ds | length) <= 2 {
-          (-3..)
-        } else if $width >= 80 and ($ds | length) <= 4 {
-          (-2..)
-        } else {
-          (-1..)
-        }
+    let local_root = if $d.active {
+      try { do $env.prowser.get_local_root $d.path }
+    }
+    let num_elems_to_keep = if $d.active {
+      if $width >= 160 or ($ds | length) <= 2 {
+        3
+      } else if $width >= 80 and ($ds | length) <= 4 {
+        2
       } else {
-        (-1..)
+        1
       }
-    ) | $"(ansi $color)($in)(ansi reset)"
+    } else {
+      1
+    }
+    $d.path | (
+      path shorten
+        --keep=$num_elems_to_keep --local-root=$local_root --color=$color
+        --highlight=($highlight_active and $d.active)
+    )
   } |
     str join $"(ansi $env.prowser.colors.separator)|(ansi reset)" |
     $"(ansi reset)(if $env.prowser.__cur_depth_idx != 0 {$'(ansi $env.prowser.colors.depth_indicator)[↳(selected-depth)](ansi reset)'})($in)"
 }
 
-# To be called in your TRANSIENT_PROMPT_COMMAND
+# To be called in your TRANSIENT_ROMPT_COMMAND
 export def render-transient [] {
-  $env.PWD | path shorten --slice (
+  $env.PWD | path shorten --keep (
     if ((term size).columns >= 120) {
-      (-5..)
+      5
     } else {
-      (-3..)
+      3
     }
   )
 }
