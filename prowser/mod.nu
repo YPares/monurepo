@@ -19,6 +19,13 @@ export-env {
     excluded: [
       "**/.*/*/**" # Do not recurse into dot directories
     ]
+    colors: {
+      separator: yellow
+      selected: light_green
+      selected_modified: yellow
+      unselected: dark_gray
+      depth_indicator: blue
+    }
   }
 }
 
@@ -332,12 +339,12 @@ export def render [] {
   $ds | each {|d|
     let color = if $d.active {
       if $d.path == ($env.DIRS_LIST | get $env.DIRS_POSITION) {
-        $"light_green($reverse_bit)"
+        $"($env.prowser.colors.selected)($reverse_bit)"
       } else {
-        $"yellow($reverse_bit)"
+        $"($env.prowser.colors.selected_modified)($reverse_bit)"
       }
     } else {
-      "default_dimmed"
+      $env.prowser.colors.unselected
     }
     $d.path | path shorten --slice (
       if $d.active {
@@ -351,10 +358,10 @@ export def render [] {
       } else {
         (-1..)
       }
-    ) | $"(ansi ($color))($in)(ansi reset)"
+    ) | $"(ansi $color)($in)(ansi reset)"
   } |
-    str join $"(ansi yellow)|(ansi reset)" |
-    $"(ansi reset)(if $env.prowser.__cur_depth_idx != 0 {$'[↳(selected-depth)]'})($in)"
+    str join $"(ansi $env.prowser.colors.separator)|(ansi reset)" |
+    $"(ansi reset)(if $env.prowser.__cur_depth_idx != 0 {$'(ansi $env.prowser.colors.depth_indicator)[↳(selected-depth)](ansi reset)'})($in)"
 }
 
 # To be called in your TRANSIENT_PROMPT_COMMAND
