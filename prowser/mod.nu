@@ -41,13 +41,13 @@ export def --env accept [] {
   $env.DIRS_LIST = $env.DIRS_LIST | update $env.DIRS_POSITION $env.PWD
 }
 
-export def --env left [] {
-  reset
+export def --env left [--reset (-r)] {
+  if $reset {reset}
   dirs prev
 }
 
-export def --env right [] {
-  reset
+export def --env right [--reset (-r)] {
+  if $reset {reset}
   dirs next
 }
 
@@ -111,6 +111,7 @@ export def --env drop [--others (-o)] {
 }
 
 def --env __each [closure: closure] {
+  accept
   $env.DIRS_LIST | each {|dir|
     cd $dir
     {index: $dir, out: ($dir | do $closure $dir)}
@@ -118,6 +119,7 @@ def --env __each [closure: closure] {
 }
 
 def --env __par-each [closure: closure] {
+  accept
   $env.DIRS_LIST | par-each {|dir|
     cd $dir
     {index: $dir, out: ($dir | do $closure $dir)}
@@ -177,6 +179,7 @@ export def --env snap [
       $env.prowser.__cur_snap_name = "default"
     }
   } else if ($previous or $name == "-") {
+    accept
     let state_to_restore = $env.prowser.__prev_dirs_state
     $env.prowser.__prev_dirs_state = snap current-state
     if $state_to_restore != null {
@@ -191,6 +194,7 @@ export def --env snap [
       error make {msg: "No previous snap known in this shell"}
     }
   } else {
+    accept
     let verb = if $name == $env.prowser.__cur_snap_name {"Reloaded"} else {"Loaded"}
     $env.prowser.__prev_dirs_state = snap current-state
     snap set $name (snap saved | get $name)
@@ -406,8 +410,8 @@ export def default-keybindings [
     [alt         [up char_k]    (cmd $'($prefix)up')]
     [alt         [char_j down]  (cmd $'($prefix)down')]
     [alt         char_s         (cmd $'($prefix)accept')]
-    [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right')]
-    [alt         char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left')]
+    [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right --reset')]
+    [alt         char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
     [alt         char_z         (cmd $'($prefix)reset')]
     [control_alt char_d         (cmd $'($prefix)drop')]
     [control_alt char_q         (cmd $'($prefix)drop --others')]
