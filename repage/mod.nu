@@ -37,7 +37,7 @@ export def page [pager: string@complete-pager = "less"] {
 
 # Show the last non-null result in full width inside a pager
 export def main [pager: string@complete-pager = "less"] {
-  if $env.LAST_RESULT != null {
+  if ($env.LAST_RESULT | describe) != nothing {
     $env.LAST_RESULT | page $pager
   }
 }
@@ -49,11 +49,13 @@ export def render-ans [
   --color (-c) = "yellow_dimmed"
   --suffix (-s) = ""
 ] {
-  if $env.LAST_RESULT != null {
+  if ($env.LAST_RESULT | describe) != nothing {
     let width = (term size).columns
   
     let ans_type = $env.LAST_RESULT | describe |
-      str replace -ra ':\s+\b\w+\b' '' | str replace -ra '\s' '' | (
+      str replace -r '^(\w{0,3})\w*<' '$1<' |
+      str replace -ra ':\s+\b\w+\b' '' |
+      str replace -ra '\s' '' | (
         let typ = $in;
         if ($typ | str length -g) >= ($width / 5) {
           $typ | str substring (0..($width / 5 | into int)) | $"($in)…"
