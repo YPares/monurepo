@@ -26,7 +26,7 @@ export def shorten [
     $path | path relative-to $local_root | path split
   } else {[]}
   if ($elems | is-empty) {
-    let elems = $path | str replace $env.HOME "~" | path split | slice ((-1 * $keep)..)
+    let elems = $path | str replace $nu.home-path "~" | path split | slice ((-1 * $keep)..)
     if $local_root != null {
       [
         $"($clr_codes.path?)($elems | slice (..-2) | path join)"

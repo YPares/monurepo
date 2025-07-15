@@ -30,7 +30,7 @@ export-env {
   }
 }
 
-const snaps_file = "~/.config/nushell/dirs-snapshots.nuon" | path expand -n
+const snaps_file = $nu.default-config-dir | path join "dirs-snapshots.nuon"
 
 
 export def --env reset [] {
@@ -369,7 +369,7 @@ export def render [] {
 
 # To be called in your TRANSIENT_ROMPT_COMMAND
 export def render-transient [] {
-  $env.PWD | path shorten --keep (
+  $env.PWD | path shorten --color=$env.prowser.colors.active --keep (
     if ((term size).columns >= 120) {
       5
     } else {
