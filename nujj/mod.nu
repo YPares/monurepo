@@ -352,13 +352,18 @@ export def restore-at [
   }
 }
 
-# Return the bookmarks in some revset as a nushell table
-export def bookmarks-to-table [
-  revset: string@"complete revision-ids" = "remote_bookmarks()"
+# List the bookmarks as a nushell table
+export def --wrapped bookmarks [
+  ...args: string # Extra args for 'jj bookmark list'
 ] {
-    tblog -r $revset bookmarks -n {author: "author.name()", date: "author.timestamp()"} |
-    update bookmarks {split row " " | parse "{bookmark}@{remote}"} | flatten --all |
-    update date {into datetime}
+  (
+    jj bookmark list
+      -T '"{'name:'" ++ json(self.name()) ++ ", 'remote:'" ++ json(self.remote()) ++  ", 'target:'" ++ json(self.normal_target()) ++ "}\n"'
+      ...$args
+  ) | from jsonl |
+    flatten target |
+    update author.timestamp {into datetime} |
+    update committer.timestamp {into datetime}
 }
 
 # Move a bookmark to the next commit
