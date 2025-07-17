@@ -66,3 +66,16 @@ export def render-ans [
   }
 }
 
+def cmd [cmd] {
+  {send: ExecuteHostCommand, cmd: $cmd}
+}
+
+export def default-keybindings [--prefix = "repage "] {
+  [
+    [modifier keycode event];
+
+    [control  char_v  (cmd $'($prefix)less')]
+    [control  char_x  (cmd $'($prefix)explore')]
+  ] | insert mode emacs
+}
+
