@@ -22,7 +22,10 @@ def run []: string -> list<any> {
 # to connect to
 export def main [
   --file (-f): path # Read SQL statement from a file instead
-]: [string -> list<any>, nothing -> list<any>] {
+]: [
+  string -> list<any>
+  nothing -> list<any>
+] {
   let query = if $file != null {
     open --raw $file
   } else if ($in | describe) == "nothing" {

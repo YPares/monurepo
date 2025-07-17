@@ -2,4 +2,4 @@
 
 ## Dependencies
 
-- `psql` (nixpkgs#psql)
+- `psql` (nixpkgs#postgresql)
