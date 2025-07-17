@@ -1,5 +1,5 @@
-use ../nujj/deltau.nu
 use ../nujj
+use deltau.nu
 use parsing.nu
 
 const jjiles_dir = path self | path dirname

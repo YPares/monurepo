@@ -12,4 +12,3 @@
 ## Dependencies
 
 - jj (nixpkgs#jujutsu) (latest stable version preferably)
-- delta (nixpkgs#delta)

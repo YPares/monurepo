@@ -1,6 +1,6 @@
 # Used inside fzf by jjiles.nu
 
-use ../nujj/deltau.nu
+use deltau.nu
 use parsing.nu
 
 def main [] {}
