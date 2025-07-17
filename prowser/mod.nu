@@ -22,7 +22,7 @@ export-env {
     colors: {
       separator: yellow
       active: light_green
-      active_modified: yellow
+      active_modified: null
       inactive: dark_gray
       depth_indicator: blue
     }
@@ -340,15 +340,16 @@ export def render [] {
   let ds = dirs
   let highlight_active = ($ds | length) > 1
   $ds | each {|d|
-    let color = if $d.active {
-      if $d.path == ($env.DIRS_LIST | get $env.DIRS_POSITION) {
+    let modified = $d.active and $d.path != ($env.DIRS_LIST | get $env.DIRS_POSITION)
+    let color = (
+      if $modified {
+        $env.prowser.colors.active_modified? | default $env.prowser.colors.active
+      } else if $d.active {
         $env.prowser.colors.active
       } else {
-        $env.prowser.colors.active_modified
+        $env.prowser.colors.inactive
       }
-    } else {
-      $env.prowser.colors.inactive
-    }
+    )
     let local_root = if $d.active {
       try { do $env.prowser.get_local_root $d.path }
     }
@@ -361,7 +362,10 @@ export def render [] {
       path shorten
         --keep=$num_elems_to_keep --local-root=$local_root --color=$color
         --highlight=($highlight_active and $d.active)
-    )
+    ) |
+      if $modified and $env.prowser.colors.active_modified == null {
+        $"($in)(ansi $color)*(ansi reset)"
+      } else {$in}
   } |
     str join $"(ansi $env.prowser.colors.separator)|(ansi reset)" |
     $"(ansi reset)(if $env.prowser.__cur_depth_idx != 0 {$'(ansi $env.prowser.colors.depth_indicator)[↳(selected-depth)](ansi reset)'})($in)"
