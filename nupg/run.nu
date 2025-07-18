@@ -36,7 +36,7 @@ export def columns [
 #
 # Will use $env.PSQL_DB_STRING as the connection string of the database
 # to connect to
-export def query [
+export def main [
   --file (-f): path # Read SQL statement from a file instead
   --verbose (-v) # Print the query
 ]: [
