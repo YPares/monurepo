@@ -13,7 +13,7 @@ def run-updates [
 }
 
 # Run an SQL statement without performing any of the column conversion
-export def raw []: string -> list<any> {
+export def raw-run []: string -> list<any> {
   ^psql $env.PSQL_DB_STRING? --csv | from csv
 }
 
@@ -27,7 +27,7 @@ export def columns [
   let query = if $file != null {
     open --raw $file
   } else {$in}
-  $'($query) \gdesc' | raw | rename column pg_type
+  $'($query) \gdesc' | raw-run | rename column pg_type
 }
 
 # Pipe in a PostgreSQL SELECT query to get its result as a nushell table,
@@ -80,5 +80,5 @@ export def main [
   if $verbose {
     print $query
   }
-  $query | raw | run-updates $nu_conversions
+  $query | raw-run | run-updates $nu_conversions
 }

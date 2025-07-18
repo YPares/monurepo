@@ -1,5 +1,6 @@
 export use run.nu *
 export use build.nu *
+export use inspect.nu
 
 export-env {
   # By default, will connect on local UNIX socket to the 'postgres' database
@@ -31,7 +32,8 @@ export def default-conversions [
   [
     [pg_type pg_convert nu_convert];
 
-    [["text[]" "integer[]"]
+    [boolean null       {$in == "t"}]
+    [["text[]" "integer[]" "information_schema.sql_identifier[]"]
       {$"array_to_json\(($in))"}
       {from json}
     ]

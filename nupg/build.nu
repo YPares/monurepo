@@ -1,4 +1,4 @@
-use run.nu
+use inspect.nu
 
 export def join-aliases [
   --sep (-s) = ","
@@ -63,15 +63,16 @@ const keywords = [
   "group by"
 ]
 
-export def complete-build [] {
-  let table_names = (
-    "select table_name
-     from information_schema.tables
-     where table_schema='public'
-     and table_type='BASE TABLE'" |
-      run | get table_name
-  )
-  $table_names ++ $keywords
+export def complete-build [_cmdline _pos] {
+  $keywords ++ (inspect schema | each {|tbl|
+    [
+      {value: $tbl.table_name, description: ""}
+      ...($tbl.columns | each {|col|
+        {value: $"($tbl.table_name).($col.column_name)"
+         description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"}
+      })
+    ]
+  } | flatten)
 }
 
 # Main function to build an sql query
