@@ -37,19 +37,19 @@ def __open [file: path] {
   bracket (open --raw $file)
 }
 
-def __select [
+export def select_ [
   ...cols: oneof<string,record>
 ] {
   $"SELECT (join-aliases ...$cols)"
 }
 
-def __from [
+export def from_ [
   ...tables: oneof<string,record>
 ] {
   $"FROM (join-aliases ...$tables)"
 }
 
-def __where [
+export def where_ [
   ...elems: string
 ] {
   $"WHERE ($elems | str join ' ')"
@@ -61,6 +61,8 @@ const keywords = [
   and or
   join "inner join" "outer join" "cross join" "cross join lateral"
   "group by"
+  limit
+  distinct
 ]
 
 export def complete-build [_cmdline _pos] {
@@ -86,7 +88,4 @@ export def main [
   $args | bracket --left $left --right $right --sep $sep
 }
 
-export alias select = __select
-export alias from = __from
-export alias where = __where
 export alias open = __open
