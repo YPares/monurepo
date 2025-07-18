@@ -12,12 +12,16 @@ export-env {
     # The types that repage should record as the last result, which
     # will be returned by 'repage ans'
     recorded_types: [stream list record table int float]
+
+    less_args: {||
+      [-SRF --window ((term size).rows / 4 | into int) "-#.25"]
+    }
   }
 
   $env.repage.pagers = {
     "less":    {|| table-less}
+    "grid":    {|| grid-less}
     "explore": {|| explore --index}
-    "grid":    {|| print ""; $in | grid --color}
     "fx":      {|| to jsonl | FX_COLLAPSED=1 ^fx}
     "tw":      {|| to csv | ^tw}
   }
@@ -41,14 +45,35 @@ export def ans [] {
   $env.repage.__last_result
 }
 
-# Render the input table in full width in the 'less' pager
+def --wrapped less-wrapper [...args] {
+  ^less ...(do $env.repage.less_args) ...$args
+}
+
+# Render the input table in full width, then feed in into less
 export def table-less [] {
   $env.config.table.header_on_separator = true
   $env.config.table.footer_inheritance = false
-  $in | table -e -w -1 | ^less -SRF --window ((term size).rows / 4 | into int) "-#.25" --header 1
+  $in | table -e -w -1 | less-wrapper --header 1
 }
 
-def complete-pager [] {
+# Select a column from the input table, then render it with 'grid',
+# then feed it into less
+export def grid-less [] {
+  print ""
+  let v = $in
+  let col = match ($v | columns) {
+    [$c] => $c
+    $cols => {
+      try { $cols | input list "Column" }
+    }
+  }
+  if $col != null {
+    $v | get $col | grid --color | less-wrapper
+  }
+}
+
+# List the known pager names
+export def complete-pager [] {
   $env.repage.pagers | columns
 }
 
@@ -65,9 +90,14 @@ export def in [pager: string@complete-pager = "less"] {
 }
 
 # Show the last recorded result in full width inside a pager
-export def main [pager: string@complete-pager = "less"] {
+export def main [
+  pager: string@complete-pager = "less"
+  wrap: oneof<closure, nothing> = null
+      # Perform a closure on the stored result before showing it
+] {
+  let wrap = if $wrap != null {$wrap} else {{$in}}
   if ($env.repage.__last_result? | describe) != nothing {
-    $env.repage.__last_result | in $pager
+    $env.repage.__last_result | do $wrap | in $pager
   }
 }
 
