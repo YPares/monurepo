@@ -14,6 +14,14 @@ export-env {
     recorded_types: [stream list record table int float]
   }
 
+  $env.repage.pagers = {
+    "less":    {|| table-less}
+    "explore": {|| explore --index}
+    "grid":    {|| print ""; $in | grid --color}
+    "fx":      {|| to jsonl | FX_COLLAPSED=1 ^fx}
+    "tw":      {|| to csv | ^tw}
+  }
+
   # IMPORTANT: This is not a list of closures, so it will override
   # your own display_output closure if you have any
   $env.config.hooks.display_output = {||
@@ -28,51 +36,53 @@ export-env {
   }
 }
 
-# Get the last non-null result
+# Get the last recorded result
 export def ans [] {
   $env.repage.__last_result
 }
 
-# Show the input table in less, in full width
-export def tless [] {
+# Render the input table in full width in the 'less' pager
+export def table-less [] {
   $env.config.table.header_on_separator = true
   $env.config.table.footer_inheritance = false
   $in | table -e -w -1 | ^less -SRF --window ((term size).rows / 4 | into int) "-#.25" --header 1
 }
 
 def complete-pager [] {
-  [less explore fx tw]
+  $env.repage.pagers | columns
 }
 
-export def page [pager: string@complete-pager = "less"] {
-  match $pager {
-    "less" => tless
-    "explore" => {explore --index --peek}
-    "fx" => {to jsonl | FX_COLLAPSED=1 ^fx}
-    "tw" => {to csv | ^tw}
-    _ => {error make {msg: $"'($pager)' unknown"}}
+# Execute a pager from $env.repage.pagers on $in
+export def in [pager: string@complete-pager = "less"] {
+  match ($env.repage.pagers | get -i $pager) {
+    null => {
+      error make {msg: $"'($pager)' unknown. It is not present in $env.repage.pagers"}
+    }
+    $cls => {
+      do $cls
+    }
   }
 }
 
-# Show the last non-null result in full width inside a pager
+# Show the last recorded result in full width inside a pager
 export def main [pager: string@complete-pager = "less"] {
-  if ($env.repage.__last_result | describe) != nothing {
-    $env.repage.__last_result | page $pager
+  if ($env.repage.__last_result? | describe) != nothing {
+    $env.repage.__last_result | in $pager
   }
 }
 
-# Get a compressed summary of the last non-null result
+# Get a compressed summary of the last recorded result
 #
 # To be used in your prompt
 export def render-ans [
   --color (-c) = "yellow"
   --suffix (-s) = ""
 ] {
-  let x = $env.repage.__last_result?
-  if ($x | describe) != nothing {
+  let ans = $env.repage.__last_result?
+  if ($ans | describe) != nothing {
     let width = (term size).columns
   
-    let ans_type = $x | describe |
+    let ans_type = $ans | describe |
       str replace -r '^(\w{0,3})\w*<' '$1<' |
       str replace -ra ':\s+\b\w+\b' '' |
       str replace -ra '\s' '' | (
@@ -83,7 +93,7 @@ export def render-ans [
       )
 
     let length = try {
-      $"($x | length)L "
+      $"($ans | length)L "
     } catch {""}
 
     $"($length)(ansi reset)(ansi $color)($ans_type)(ansi reset)($suffix)"
@@ -100,6 +110,7 @@ export def default-keybindings [--prefix = "repage "] {
 
     [control  char_v  (cmd $'($prefix)less')]
     [control  char_x  (cmd $'($prefix)explore')]
+    [control  char_g  (cmd $'($prefix)grid')]
   ] | insert mode emacs
 }
 
