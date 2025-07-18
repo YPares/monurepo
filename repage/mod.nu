@@ -71,23 +71,25 @@ export def main [pager: string@complete-pager = "less"] {
   }
 }
 
-# Get a compressed summary of the last recorded result
+# Get a compressed summary of the last recorded result,
+# or an empty string if no result is recorded
 #
 # To be used in your prompt
-export def render-ans [
-  --color (-c) = "yellow"
-  --suffix (-s) = ""
+export def render-ans-summary [
+  --color (-c) = "yellow" # Which color to render the type in
+  --truncate # Truncate the summary depending on terminal width
+  --suffix (-s) = "" # If an output is produced, add this suffix to it
 ] {
   let ans = $env.repage.__last_result?
   if ($ans | describe) != nothing {
     let width = (term size).columns
   
     let ans_type = $ans | describe |
-      str replace -r '^(\w{0,3})\w*<' '$1<' |
+      str replace -r '^(\w)\w*<' '$1<' |
       str replace -ra ':\s+\b\w+\b' '' |
       str replace -ra '\s' '' | (
         let typ = $in;
-        if ($typ | str length -g) >= ($width / 5) {
+        if $truncate and (($typ | str length -g) >= ($width / 5)) {
           $typ | str substring (0..($width / 5 | into int)) | $"($in)…"
         } else {$typ}
       )
