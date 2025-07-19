@@ -18,7 +18,7 @@ export-env {
     }
   }
 
-  $env.repage.pagers = {
+  $env.repage.viewers = {
     "less":    {|| table-less}
     "grid":    {|| grid-less}
     "explore": {|| explore --index}
@@ -59,7 +59,6 @@ export def table-less [] {
 # Select a column from the input table, then render it with 'grid',
 # then feed it into less
 export def grid-less [] {
-  print ""
   let v = $in
   let col = match ($v | columns) {
     [$c] => $c
@@ -70,18 +69,21 @@ export def grid-less [] {
   if $col != null {
     $v | get $col | grid --color | less-wrapper
   }
+  print ""
 }
 
-# List the known pager names
-export def complete-pager [] {
-  $env.repage.pagers | columns
+# List the known viewer names
+export def viewers [] {
+  $env.repage.viewers | columns
 }
 
-# Execute a pager from $env.repage.pagers on $in
-export def in [pager: string@complete-pager = "less"] {
-  match ($env.repage.pagers | get -i $pager) {
+# Execute a viewer from $env.repage.viewers on $in
+export def in [
+  --viewer (-v): string@viewers = "less"
+] {
+  match ($env.repage.viewers | get -i $viewer) {
     null => {
-      error make {msg: $"'($pager)' unknown. It is not present in $env.repage.pagers"}
+      error make {msg: $"'($viewer)' unknown. It is not present in $env.repage.viewers"}
     }
     $cls => {
       do $cls
@@ -89,15 +91,19 @@ export def in [pager: string@complete-pager = "less"] {
   }
 }
 
-# Show the last recorded result in full width inside a pager
+# Show the last recorded result in full width inside a viewer
 export def main [
-  pager: string@complete-pager = "less"
+  --select (-s) # Open a dropdown list to select the viewer (ignore -v then)
+  --viewer (-v): string@viewers = "less"
   wrap: oneof<closure, nothing> = null
       # Perform a closure on the stored result before showing it
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
-  if ($env.repage.__last_result? | describe) != nothing {
-    $env.repage.__last_result | do $wrap | in $pager
+  let viewer = if $select {
+    try { viewers | input list "Viewers" }
+  } else {$viewer}
+  if $viewer != null and ($env.repage.__last_result? | describe) != nothing {
+    $env.repage.__last_result | do $wrap | in -v $viewer
   }
 }
 
@@ -136,13 +142,12 @@ def cmd [cmd] {
   {send: ExecuteHostCommand, cmd: $cmd}
 }
 
-export def default-keybindings [--prefix = "repage "] {
+export def default-keybindings [] {
   [
     [modifier keycode event];
 
-    [control  char_v  (cmd $'($prefix)less')]
-    [control  char_x  (cmd $'($prefix)explore')]
-    [control  char_g  (cmd $'($prefix)grid')]
+    [control char_v (cmd $'print ""; repage -s')]
+    [control char_x (cmd $'repage -v explore')]
   ] | insert mode emacs
 }
 
