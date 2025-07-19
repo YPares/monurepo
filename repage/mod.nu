@@ -45,7 +45,7 @@ export def ans [] {
   $env.repage.__last_result
 }
 
-def --wrapped less-wrapper [...args] {
+export def --wrapped less-wrapper [...args] {
   ^less ...(do $env.repage.less_args) ...$args
 }
 
@@ -54,6 +54,11 @@ export def table-less [] {
   $env.config.table.header_on_separator = true
   $env.config.table.footer_inheritance = false
   $in | table -e -w -1 | less-wrapper --header 1
+    # Using --header implies that the output of less will always be
+    # at least one screen long, with extra ~'s at the beginning of
+    # extra lines if the input isn't long enough. 
+    # 
+    # TODO: find a way to avoid that
 }
 
 # Select a column from the input table, then render it with 'grid',
