@@ -74,7 +74,9 @@ export def grid-less [] {
   if $col != null {
     $v | get $col | grid --color | less-wrapper
   }
-  print ""
+  print "" # When called from keybinding, if the output of 'grid' is just one line,
+           # the new prompt can sometimes by rendered right over the output
+           # in some cases
 }
 
 # List the known viewer names
@@ -147,12 +149,17 @@ def cmd [cmd] {
   {send: ExecuteHostCommand, cmd: $cmd}
 }
 
+# Keybindings to be used as an example
+#
+# You can use them straightaway or set your own in your config.nu
 export def default-keybindings [] {
   [
     [modifier keycode event];
 
-    [control char_v (cmd $'print ""; repage -s')]
-    [control char_x (cmd $'repage -v explore')]
+    [control     char_v (cmd $'print ""; repage -s')]
+    [control_alt char_v (cmd $'repage -v less')]
+    [control     char_x (cmd $'repage -v explore')]
+    [control_alt char_x (cmd $'print ""; repage -v grid')]
   ] | insert mode emacs
 }
 
