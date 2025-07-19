@@ -14,7 +14,10 @@ def run-updates [
 
 # Run an SQL statement without performing any of the column conversion
 export def "main raw" []: string -> list<any> {
-  ^psql $env.PSQL_DB_STRING? --csv | from csv
+  (^psql
+    ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
+    $env.PSQL_DB_STRING --csv
+  ) | from csv
 }
 
 # Get the columns and types returned by a query

@@ -22,6 +22,12 @@ export-env {
     #
     # See 'default-conversions' to check how this conversion table should be laid out
     conversions: (default-conversions)
+
+    # Whether to read the user's config files for the tools used internally
+    user_configs: {
+      psql: true  # ~/.psqlrc
+      bat:  false # ~/.config/bat/config
+    }
   }
 }
 
@@ -38,9 +44,7 @@ export def default-conversions [
       {$"array_to_json\(($in))"}
       {from json}
     ]
-    [[json jsonb]
-      null
-      {from json}]
+    [[json jsonb] null  {from json}]
     [[timestamp "timestamp with time zone"]
       null
       {into datetime}]
