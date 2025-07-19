@@ -7,6 +7,9 @@ export-env {
   # By default, will connect on local UNIX socket to the 'postgres' database
   $env.PSQL_DB_STRING = "postgresql://%2Fvar%2Frun%2Fpostgresql/postgres"
 
+  # Which schema to target when querying table & column schema for autocompletion
+  $env.PSQL_SCHEMA = "public"
+
   $env.nupg = {
     # The table of conversions to perform, depending on the type of the rows
     # of the query detected by psql. Each conversion is composed of two parts:

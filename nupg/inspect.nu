@@ -1,9 +1,13 @@
 use run.nu
 
-# Return the wanted schema as a nushell table
+# Return the PostgreSQL tables & columns as a nushell table
 export def schema [
-  schema: string = "public" # The schema to read
+  schema?: string # The schema to target. $env.PSQL_SCHEMA by default
 ]: nothing -> table<table_name: string, columns: table<column_name: string, pg_type: string, is_nullable: bool>> {
+  let schema = if $schema != null {
+    $schema
+  } else {$env.PSQL_SCHEMA}
+
   $"select table_name, jsonb_agg\(jsonb_build_object\(
       'column_name', column_name,
       'pg_type', data_type,
