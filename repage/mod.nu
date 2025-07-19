@@ -10,20 +10,32 @@ export-env {
     max_printed_lines: {|| (term size).rows * 3 / 4}
 
     # The types that repage should record as the last result, which
-    # will be returned by 'repage ans'
-    recorded_types: [stream list record table int float]
+    # will then be returned by 'repage ans'.
+    # Types not in this list will not be recorded, and thus the last
+    # result will hold its value.
+    # This is to "fiter out" irrelevant data that you might not want
+    # to erase your last result with.
+    #
+    # Setting this to null will force every result to be recorded,
+    # whatever its type, EXCEPT null values.
+    recorded_types: [stream list record table]
 
     less_args: {||
       [-SRF --window ((term size).rows / 4 | into int) "-#.25"]
     }
   }
 
+  # A record of closures that render on stdout a value that is piped in
+  #
+  # You can add your own functions to it:
+  # $env.repage.viewers = $env.repage.viewers | merge {...}
   $env.repage.viewers = {
-    "less":    {|| table-less}
-    "grid":    {|| grid-less}
-    "explore": {|| explore --index}
-    "fx":      {|| to jsonl | FX_COLLAPSED=1 ^fx}
-    "tw":      {|| to csv | ^tw}
+    "less":      {|| table-less}
+    "grid-all":  {|| grid-less}
+    "grid-uniq": {|| grid-less --unique}
+    "explore":   {|| explore --index}
+    "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
+    "tw":        {|| to csv | ^tw}
   }
 
   # IMPORTANT: This is not a list of closures, so it will override
@@ -33,8 +45,11 @@ export-env {
       table -a (do $env.repage.max_printed_lines | $in / 2 | into int) | print
     } |
       [($in | describe -d) $in] |
-      if ($in.0.type in $env.repage.recorded_types
-          or $in.0.detailed_type in $env.repage.recorded_types) {
+      if $in.0.type != "nothing" and (
+        $env.repage.recorded_types? == null
+        or $in.0.type in $env.repage.recorded_types
+        or $in.0.detailed_type in $env.repage.recorded_types
+      ) {
         $env.repage.__last_result = $in.1
       }
   }
@@ -63,16 +78,21 @@ export def table-less [] {
 
 # Select a column from the input table, then render it with 'grid',
 # then feed it into less
-export def grid-less [] {
+export def grid-less [
+  --unique (-u) # Remove duplicate values from the column before showing it
+] {
   let v = $in
   let col = match ($v | columns) {
     [$c] => $c
     $cols => {
-      try { $cols | input list "Column" }
+      try { $cols | input list --fuzzy "Column" }
     }
   }
   if $col != null {
-    $v | get $col | grid --color | less-wrapper
+    $v | get $col |
+      if $unique {uniq} else {$in} |
+      grid --color |
+      less-wrapper
   }
   print "" # When called from keybinding, if the output of 'grid' is just one line,
            # the new prompt can sometimes by rendered right over the output
@@ -107,7 +127,7 @@ export def main [
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
-    try { viewers | input list "Viewers" }
+    try { viewers | input list --fuzzy "Viewers" }
   } else {$viewer}
   if $viewer != null and ($env.repage.__last_result? | describe) != nothing {
     $env.repage.__last_result | do $wrap | in -v $viewer
@@ -159,7 +179,7 @@ export def default-keybindings [] {
     [control     char_v (cmd $'print ""; repage -s')]
     [control_alt char_v (cmd $'repage -v less')]
     [control     char_x (cmd $'repage -v explore')]
-    [control_alt char_x (cmd $'print ""; repage -v grid')]
+    [control_alt char_x (cmd $'print ""; repage -v grid-uniq')]
   ] | insert mode emacs
 }
 
