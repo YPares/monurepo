@@ -17,42 +17,47 @@ export-env {
     # to erase your last result with.
     #
     # Setting this to null will force every result to be recorded,
-    # whatever its type, EXCEPT null values.
+    # whatever its type, EXCEPT null values
     recorded_types: [stream list record table]
 
+    # Arguments to be given to 'less'
+    # It is a closure so that we can query dynamic values (such as
+    # terminal width) every time it is needed
     less_args: {||
       [-SRF --window ((term size).rows / 4 | into int) "-#.25"]
     }
-  }
 
-  # A record of closures that render on stdout a value that is piped in
-  #
-  # You can add your own functions to it:
-  # $env.repage.viewers = $env.repage.viewers | merge {...}
-  $env.repage.viewers = {
-    "less":      {|| table-less}
-    "grid-all":  {|| grid-less}
-    "grid-uniq": {|| grid-less --unique}
-    "explore":   {|| explore --index}
-    "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
-    "tw":        {|| to csv | ^tw}
+    # A record of closures that render on stdout a value that is piped in
+    #
+    # You can add your own functions to it:
+    # $env.repage.viewers = $env.repage.viewers | merge {...}
+    viewers: {
+      "less":      {|| table-less}
+      "grid-all":  {|| grid-less}
+      "grid-uniq": {|| grid-less --unique}
+      "explore":   {|| explore --index}
+      "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
+      "tw":        {|| to csv | ^tw}
+    }
   }
+}
 
-  # IMPORTANT: This is not a list of closures, so it will override
-  # your own display_output closure if you have any
-  $env.config.hooks.display_output = {||
-    tee {
-      table -a (do $env.repage.max_printed_lines | $in / 2 | into int) | print
-    } |
-      [($in | describe -d) $in] |
-      if $in.0.type != "nothing" and (
-        $env.repage.recorded_types? == null
-        or $in.0.type in $env.repage.recorded_types
-        or $in.0.detailed_type in $env.repage.recorded_types
-      ) {
-        $env.repage.__last_result = $in.1
-      }
-  }
+# Record the value fed via pipeline input, if this value fits some conditions,
+# and then render it with 'table'.
+#
+# To be used as your $env.config.hooks.display_output
+export def --env record-and-render []: any -> string {
+  tee {
+    table -a (do $env.repage.max_printed_lines | $in / 2 | into int) | print
+  } |
+    [($in | describe -d) $in] |
+    if $in.0.type != "nothing" and (
+      $env.repage.recorded_types? == null
+      or $in.0.type in $env.repage.recorded_types
+      or $in.0.detailed_type in $env.repage.recorded_types
+    ) {
+      $env.repage.__last_result = $in.1
+    }
 }
 
 # Get the last recorded result
