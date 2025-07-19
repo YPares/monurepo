@@ -94,14 +94,15 @@ export def grid-less [
     }
   }
   if $col != null {
+    let header = $"(ansi attr_dimmed)[(if $unique {'unique '} else {""})values in (ansi reset)($col)(ansi attr_dimmed)](ansi reset)\n"
     $v | get $col |
       if $unique {uniq} else {$in} |
-      grid --color |
+      $header ++ ($in | grid --color) |
       less-wrapper
+    print "" # When called from keybinding, if the output of 'grid' is just one line,
+             # the new prompt can sometimes by rendered right over the output
+             # in some cases
   }
-  print "" # When called from keybinding, if the output of 'grid' is just one line,
-           # the new prompt can sometimes by rendered right over the output
-           # in some cases
 }
 
 # List the known viewer names
