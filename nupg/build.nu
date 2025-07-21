@@ -3,7 +3,7 @@ use store/internals.nu *
 
 export def join-aliases [
   --sep (-s) = ","
-  ...args #: list<oneof<string,record>>
+  ...args: oneof<string,record>
 ]: nothing -> string {
   ($args | each {|arg|
     match ($arg | describe) {
@@ -65,22 +65,42 @@ const keywords = [
   limit
 ]
 
-export def complete-build [_cmdline _pos] {
-  $keywords ++ (
-    inspect schema | each {|tbl|
-      [
-        {value: $tbl.table_name, description: ""}
-        ...($tbl.columns | each {|col|
-          {
-            value: $"($tbl.table_name).($col.column_name)"
-            description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"
-          }
-        })
-      ]
-    } | flatten
-  ) ++ (
-    complete-stored
-  )
+export def complete-build [cmdline pos] {
+  mut include_columns = false
+
+  let current_word = $cmdline |
+    str substring ..<$pos | split row " " | slice (-1).. |
+    match $in {
+      [""] => ""
+      [] => ""
+      [$x] => {
+        $include_columns = "." in $x
+        $x | split row "." | first
+      }
+    }
+
+  let schema = inspect schema --table-prefix $current_word
+
+  mut tables = []
+  mut columns = []
+
+  for tbl in $schema {
+    $tables ++= [{
+      value: $tbl.table_name
+      description: (
+        $tbl.columns | select column_name pg_type | transpose -rd | $"($in)"
+      )
+    }]
+
+    if $include_columns {
+      $columns ++= $tbl.columns | each {|col| {
+        value: $"($tbl.table_name).($col.column_name)"
+        description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"
+      }}
+    }
+  }
+  
+  $keywords ++ $tables ++ $columns ++ (complete-stored)
 }
 
 # Main function to build an sql query
