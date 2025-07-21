@@ -1,5 +1,6 @@
 export use run.nu
-export use build.nu *
+export use build.nu main
+use build.nu complete-build
 export use inspect.nu
 export use pretty.nu
 export use store
