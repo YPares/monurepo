@@ -2,12 +2,12 @@ export-env {
   $env.repage = {
     __last_result: null
 
-    # How many lines should non-paginated displayed results take at most
+    # How to show (summarized) results of commands
     #
-    # By default it is made so any output always fits on one page
-    #
-    # It will be rounded down so this can return a float
-    max_printed_lines: {|| (term size).rows * 3 / 4}
+    # Will be used in 'record-and-render'
+    display_output: {||
+      table -a ((term size).rows * 3 / 4 | $in / 2 | into int) | print
+    }
 
     # The types that repage should record as the last result, which
     # will then be returned by 'repage ans'.
@@ -49,7 +49,7 @@ export-env {
 # To be used as your $env.config.hooks.display_output
 export def --env record-and-render []: any -> string {
   tee {
-    table -a (do $env.repage.max_printed_lines | $in / 2 | into int) | print
+    do $env.repage.display_output
   } |
     [($in | describe -d) $in] |
     if $in.0.type != "nothing" and (
