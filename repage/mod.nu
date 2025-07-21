@@ -25,6 +25,14 @@ export-env {
     # terminal width) every time it is needed
     less_args: {||
       [-SRF --window ((term size).rows / 4 | into int) "-#.25"]
+        # Add '--header 1' if you want to keep the first line as a
+        # sticky header.
+        # 
+        # However, using --header implies that the output of less will always be
+        # at least one screen long, with extra ~'s at the beginning of
+        # extra lines if the input isn't long enough. 
+        # 
+        # TODO: find a way to avoid that
     }
 
     # A record of closures that render on stdout a value that is piped in
@@ -80,12 +88,7 @@ export def --wrapped less-wrapper [...args] {
 export def table-less [] {
   $env.config.table.header_on_separator = true
   $env.config.table.footer_inheritance = false
-  $in | table -e -w -1 | less-wrapper --header 1
-    # Using --header implies that the output of less will always be
-    # at least one screen long, with extra ~'s at the beginning of
-    # extra lines if the input isn't long enough. 
-    # 
-    # TODO: find a way to avoid that
+  $in | table -e -w -1 | less-wrapper
 }
 
 # Select a column from the input table, then render it with 'grid',
