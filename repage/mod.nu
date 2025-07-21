@@ -111,16 +111,19 @@ export def grid-less [
   --no-header (-H) # Do not display the column name as a header
 ] {
   mut to_display = $in
-  let col = match (try { $to_display | columns }) {
+  let col = match (try { $to_display | typed-columns }) {
     null => {
       # This ensures that $to_display is a 1x1 table:
       $to_display = [$to_display] | flatten | wrap values
       "values"
     }
-    [$col] => $col
-    $cols => {
-      try { $cols | input list --fuzzy "Column:" }
-    }
+    [$col] => $col.name
+    $cols => {try {
+      $cols |
+        insert text {$"($in.name) (ansi attr_italic)\(($in.type))(ansi reset)"} |
+        input list --fuzzy "Column:" -d text |
+        get name
+    }}
   }
   if $col != null {
     let header = if $no_header {""} else {
@@ -147,8 +150,10 @@ export def typed-columns [] {
 # Show the columns from the input table and their types
 export def columns-less [] {
   typed-columns | each {|col|
-      $"($col.name) (ansi attr_italic)\(($col.type))(ansi reset)"
-    } | wrap columns | grid-less
+    $"($col.name) (ansi attr_italic)\(($col.type))(ansi reset)"
+  } |
+    wrap columns |
+    grid-less
 }
 
 # List the known viewer names
