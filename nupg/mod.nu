@@ -1,7 +1,8 @@
-export use run.nu *
+export use run.nu
 export use build.nu *
 export use inspect.nu
 export use pretty.nu
+export use store
 
 export-env {
   # By default, will connect on local UNIX socket to the 'postgres' database
@@ -31,6 +32,9 @@ export-env {
       psql: true  # ~/.psqlrc
       bat:  false # ~/.config/bat/config
     }
+
+    # A file in which to store reusable queries
+    store: "nupg-query-store.toml"
   }
 }
 

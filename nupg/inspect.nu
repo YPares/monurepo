@@ -15,5 +15,5 @@ export def schema [
     ))
    from information_schema.columns
    where table_schema='($schema)'
-   group by table_name" | run | rename table_name columns
+   group by table_name" | run --no-stored-queries | rename table_name columns
 }

@@ -1,4 +1,5 @@
 use inspect.nu
+use store/internals.nu *
 
 export def join-aliases [
   --sep (-s) = ","
@@ -57,24 +58,29 @@ export def where_ [
 
 # TODO: Read this list from a real source of truth
 const keywords = [
-  select from where
-  and or
-  join "inner join" "outer join" "cross join" "cross join lateral"
-  "group by"
-  limit
+  select from where and or as
   distinct
+  join "inner join" "outer join" "cross join" lateral on
+  "group by" "order by" asc desc having
+  limit
 ]
 
 export def complete-build [_cmdline _pos] {
-  $keywords ++ (inspect schema | each {|tbl|
-    [
-      {value: $tbl.table_name, description: ""}
-      ...($tbl.columns | each {|col|
-        {value: $"($tbl.table_name).($col.column_name)"
-         description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"}
-      })
-    ]
-  } | flatten)
+  $keywords ++ (
+    inspect schema | each {|tbl|
+      [
+        {value: $tbl.table_name, description: ""}
+        ...($tbl.columns | each {|col|
+          {
+            value: $"($tbl.table_name).($col.column_name)"
+            description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"
+          }
+        })
+      ]
+    } | flatten
+  ) ++ (
+    complete-stored
+  )
 }
 
 # Main function to build an sql query
