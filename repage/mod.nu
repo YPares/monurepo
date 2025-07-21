@@ -1,6 +1,6 @@
 export-env {
   $env.repage = {
-    __last_result: null
+    __recorded: null
 
     # How to show (summarized) results of commands
     #
@@ -47,25 +47,38 @@ export-env {
 # and then render it with 'table'.
 #
 # To be used as your $env.config.hooks.display_output
-export def --env record-and-render []: any -> string {
-  tee {
-    do $env.repage.display_output
-  } |
-    [($in | describe -d) $in] |
-    if $in.0.type != "nothing" and (
-      $env.repage.recorded_types? == null
-      or $in.0.type in $env.repage.recorded_types
-      or $in.0.subtype?.type in $env.repage.recorded_types
-        # .subtype exists for streams, and gives the type of the data
-        # when the stream is resolved
-    ) {
-      $env.repage.__last_result = $in.1
-    }
+export def --env record-and-render [
+  --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
+]: any -> string {
+  tee {do $env.repage.display_output} | record --force=$force
+}
+
+# Record the value fed via pipeline input, if this value fits some conditions
+export def --env record [
+  --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
+] {
+  [($in | describe -d) $in] |
+  if $force or $in.0.type != "nothing" and (
+    $env.repage.recorded_types? == null
+    or $in.0.type in $env.repage.recorded_types
+    or $in.0.subtype?.type in $env.repage.recorded_types
+      # .subtype exists for streams, and gives the type of the data
+      # when the stream is resolved
+  ) {
+    $env.repage.__recorded = $in.1
+  }
 }
 
 # Get the last recorded result
 export def ans [] {
-  $env.repage.__last_result
+  $env.repage.__recorded
+}
+
+# Erase the last recorded result
+#
+# Equivalent to 'null | repage record -f'
+export def --env drop [] {
+  $env.repage.__recorded = null
 }
 
 # The default set of viewers used by repage when you import this module
@@ -157,7 +170,7 @@ export def in [
   }
 }
 
-def complete-columns [] {
+def complete-ans-columns [] {
   ans | typed-columns | rename value description
 }
 
@@ -168,15 +181,15 @@ export def main [
                 # Which viewer (from $env.repage.viewers) to use
   --wrap (-w): oneof<closure, nothing> = null
       # Process the recorded result (post column filtering) before showing it
-  ...columns: string@complete-columns # The columns of the recorded result to select.
+  ...columns: string@complete-ans-columns # The columns of the recorded result to select.
                                  # Selects all the columns if none given
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
     try { viewers | input list --fuzzy "Viewer:" }
   } else {$viewer}
-  if $viewer != null and ($env.repage.__last_result? | describe) != nothing {
-    $env.repage.__last_result |
+  if $viewer != null and ($env.repage.__recorded? | describe) != nothing {
+    $env.repage.__recorded |
       if ($columns | is-empty) {$in} else {select ...$columns} |
       do $wrap |
       in -v $viewer
@@ -192,7 +205,7 @@ export def render-ans-summary [
   --truncate # Truncate the summary depending on terminal width
   --suffix (-s) = "" # If an output is produced, add this suffix to it
 ] {
-  let ans = $env.repage.__last_result?
+  let ans = $env.repage.__recorded?
   if ($ans | describe) != nothing {
     let width = (term size).columns
   
