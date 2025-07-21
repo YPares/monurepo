@@ -1,6 +1,10 @@
 use inspect.nu
 use store/internals.nu *
 
+const keywords_file = (
+  path self | path dirname | path join keywords.txt
+)
+
 export def join-aliases [
   --sep (-s) = ","
   ...args: oneof<string,record>
@@ -56,16 +60,9 @@ export def where_ [
   $"WHERE ($elems | str join ' ')"
 }
 
-# TODO: Read this list from a real source of truth
-const keywords = [
-  select from where and or as
-  distinct
-  join "inner join" "outer join" "cross join" lateral on
-  "group by" "order by" asc desc having
-  limit
-]
-
 export def complete-build [cmdline pos] {
+  mut values = $keywords_file | open | lines
+
   mut include_columns = false
 
   let current_word = $cmdline |
@@ -81,26 +78,23 @@ export def complete-build [cmdline pos] {
 
   let schema = inspect schema --table-prefix $current_word
 
-  mut tables = []
-  mut columns = []
-
   for tbl in $schema {
-    $tables ++= [{
+    $values ++= [{
       value: $tbl.table_name
       description: (
-        $tbl.columns | select column_name pg_type | transpose -rd | $"($in)"
+        $tbl.columns | cols-to-desc
       )
     }]
 
     if $include_columns {
-      $columns ++= $tbl.columns | each {|col| {
+      $values ++= $tbl.columns | each {|col| {
         value: $"($tbl.table_name).($col.column_name)"
-        description: $"($col.pg_type)(if $col.is_nullable {""} else {' NOT NULL'})"
+        description: $"($col.pg_type | str upcase)(if $col.is_nullable {""} else {' NOT NULL'})"
       }}
     }
   }
   
-  $keywords ++ $tables ++ $columns ++ (complete-stored)
+  $values ++ (complete-stored)
 }
 
 # Main function to build an sql query

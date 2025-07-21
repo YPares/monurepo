@@ -1,6 +1,15 @@
 # nupg
 
-Make queries to PostgreSQL and get the result as nested Nushell datatypes.
+Make queries to PostgreSQL and get the result as nested Nushell datatypes:
+
+```nushell
+> use nupg
+
+> $env.PSQL_DB_STRING = "postgresql://me:me@localhost/mydb"
+
+> nupg select * from some_<Tab>
+> nupg select * from some_table
+```
 
 ## Features
 

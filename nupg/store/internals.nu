@@ -12,8 +12,14 @@ export def stored-queries [
   [(get-store)] | update cells {get query} | first
 }
 
+export def cols-to-desc []: table<column_name: string, pg_type: string> -> string {
+  each {|col|
+    $"($col.column_name) ($col.pg_type | str upcase)"
+  } | str join ", "
+}
+
 export def complete-stored [] {
   stored-types | insert description {|stored|
-    $stored.columns | transpose -rd | $"($in)"
+    $stored.columns | cols-to-desc
   } | rename -c {name: value}
 }
