@@ -18,7 +18,7 @@ export-env {
     #
     # Setting this to null will force every result to be recorded,
     # whatever its type, EXCEPT null values
-    recorded_types: [stream list record table]
+    recorded_types: [list record table]
 
     # Arguments to be given to 'less'
     # It is a closure so that we can query dynamic values (such as
@@ -30,15 +30,8 @@ export-env {
     # A record of closures that render on stdout a value that is piped in
     #
     # You can add your own functions to it:
-    # $env.repage.viewers = $env.repage.viewers | merge {...}
-    viewers: {
-      "less":      {|| table-less}
-      "grid-all":  {|| grid-less}
-      "grid-uniq": {|| grid-less --unique}
-      "explore":   {|| explore --index}
-      "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
-      "tw":        {|| to csv | ^tw}
-    }
+    # $env.repage.viewers = repage default-viewers | merge {...}
+    viewers: (default-viewers)
   }
 }
 
@@ -54,7 +47,9 @@ export def --env record-and-render []: any -> string {
     if $in.0.type != "nothing" and (
       $env.repage.recorded_types? == null
       or $in.0.type in $env.repage.recorded_types
-      or $in.0.detailed_type in $env.repage.recorded_types
+      or $in.0.subtype?.type in $env.repage.recorded_types
+        # .subtype exists for streams, and gives the type of the data
+        # when the stream is resolved
     ) {
       $env.repage.__last_result = $in.1
     }
@@ -65,6 +60,18 @@ export def ans [] {
   $env.repage.__last_result
 }
 
+# The default set of viewers used by repage when you import this module
+export def default-viewers []: nothing -> record {{
+  "columns":   {|| columns | wrap columns | grid-less}
+  "less":      {|| table-less}
+  "grid-all":  {|| grid-less}
+  "grid-uniq": {|| grid-less --unique}
+  "explore":   {|| explore --index}
+  "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
+  "tw":        {|| to csv | ^tw}
+}}
+
+# Run 'less' with the args defined in $env.repage.less_args
 export def --wrapped less-wrapper [...args] {
   ^less ...(do $env.repage.less_args) ...$args
 }
@@ -85,17 +92,26 @@ export def table-less [] {
 # then feed it into less
 export def grid-less [
   --unique (-u) # Remove duplicate values from the column before showing it
+  --no-header (-H) # Do not display the column name as a header
 ] {
-  let v = $in
-  let col = match ($v | columns) {
-    [$c] => $c
+  mut to_display = $in
+  let col = match (try { $to_display | columns }) {
+    null => {
+      # This ensures that $to_display is a 1x1 table:
+      $to_display = [$to_display] | flatten | wrap values
+      "values"
+    }
+    [$col] => $col
     $cols => {
-      try { $cols | input list --fuzzy "Column" }
+      try { $cols | input list --fuzzy "Column:" }
     }
   }
   if $col != null {
-    let header = $"(ansi attr_dimmed)[(if $unique {'unique '} else {""})values in (ansi reset)($col)(ansi attr_dimmed)](ansi reset)\n"
-    $v | get $col |
+    let header = if $no_header {""} else {
+      let uniq_bit = if $unique {'unique '} else {""}
+      $"(ansi attr_dimmed)-- ($uniq_bit)entries in (ansi reset)(ansi attr_italic)($col)(ansi reset)(ansi attr_dimmed):(ansi reset)\n"
+    }
+    $to_display | get $col |
       if $unique {uniq} else {$in} |
       $header ++ ($in | grid --color) |
       less-wrapper
@@ -133,7 +149,7 @@ export def main [
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
-    try { viewers | input list --fuzzy "Viewers" }
+    try { viewers | input list --fuzzy "Viewer:" }
   } else {$viewer}
   if $viewer != null and ($env.repage.__last_result? | describe) != nothing {
     $env.repage.__last_result | do $wrap | in -v $viewer
@@ -183,9 +199,10 @@ export def default-keybindings [] {
     [modifier keycode event];
 
     [control     char_v (cmd $'print ""; repage -s')]
-    [control_alt char_v (cmd $'repage -v less')]
+    [control     char_w (cmd $'repage -v less')]
     [control     char_x (cmd $'repage -v explore')]
     [control_alt char_x (cmd $'print ""; repage -v grid-uniq')]
+    [control_alt char_c (cmd $'print ""; repage -v columns')]
   ] | insert mode emacs
 }
 
