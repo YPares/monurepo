@@ -124,11 +124,17 @@ export def grid-less [
   }
 }
 
+# A version of 'columns' that returns the types too
+export def typed-columns [] {
+  [$in] | flatten | first | # To ensure we always get a record here
+    describe -d | get columns | transpose key val |
+    each {{name: $in.key, type: $in.val.type}} 
+}
+
 # Show the columns from the input table and their types
 export def columns-less [] {
-  [$in] | flatten | first | # To ensure we always get a record here
-    describe -d | get columns | transpose key val | each {|col|
-      $"($col.key) (ansi attr_italic)\(($col.val.type))(ansi reset)"
+  typed-columns | each {|col|
+      $"($col.name) (ansi attr_italic)\(($col.type))(ansi reset)"
     } | wrap columns | grid-less
 }
 
@@ -151,19 +157,29 @@ export def in [
   }
 }
 
+def complete-columns [] {
+  ans | typed-columns | rename value description
+}
+
 # Show the last recorded result in full width inside a viewer
 export def main [
   --select (-s) # Open a dropdown list to select the viewer (ignore -v then)
   --viewer (-v): string@viewers = "less"
-  wrap: oneof<closure, nothing> = null
-      # Perform a closure on the stored result before showing it
+                # Which viewer (from $env.repage.viewers) to use
+  --wrap (-w): oneof<closure, nothing> = null
+      # Process the recorded result (post column filtering) before showing it
+  ...columns: string@complete-columns # The columns of the recorded result to select.
+                                 # Selects all the columns if none given
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
     try { viewers | input list --fuzzy "Viewer:" }
   } else {$viewer}
   if $viewer != null and ($env.repage.__last_result? | describe) != nothing {
-    $env.repage.__last_result | do $wrap | in -v $viewer
+    $env.repage.__last_result |
+      if ($columns | is-empty) {$in} else {select ...$columns} |
+      do $wrap |
+      in -v $viewer
   }
 }
 
