@@ -1,3 +1,5 @@
+use viewers.nu
+
 export-env {
   $env.repage = {
     __recorded: null
@@ -81,89 +83,13 @@ export def --env drop [] {
   $env.repage.__recorded = null
 }
 
-# The default set of viewers used by repage when you import this module
-export def default-viewers []: nothing -> record {{
-  "less":      {|| table-less}
-  "columns":   {|| columns-less}
-  "grid-all":  {|| grid-less}
-  "grid-uniq": {|| grid-less --unique}
-  "explore":   {|| explore --index}
-  "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
-  "tw":        {|| to csv | ^tw}
-}}
-
-# Run 'less' with the args defined in $env.repage.less_args
-export def --wrapped less-wrapper [...args] {
-  ^less ...(do $env.repage.less_args) ...$args
-}
-
-# Render the input table in full width, then feed in into less
-export def table-less [] {
-  $env.config.table.header_on_separator = true
-  $env.config.table.footer_inheritance = false
-  $in | table -e -w -1 | less-wrapper
-}
-
-# Select a column from the input table, then render it with 'grid',
-# then feed it into less
-export def grid-less [
-  --unique (-u) # Remove duplicate values from the column before showing it
-  --no-header (-H) # Do not display the column name as a header
-] {
-  mut to_display = $in
-  let col = match (try { $to_display | typed-columns }) {
-    null => {
-      # This ensures that $to_display is a 1x1 table:
-      $to_display = [$to_display] | flatten | wrap values
-      "values"
-    }
-    [$col] => $col.name
-    $cols => {try {
-      $cols |
-        insert text {$"($in.name) (ansi attr_italic)\(($in.type))(ansi reset)"} |
-        input list --fuzzy "Column:" -d text |
-        get name
-    }}
-  }
-  if $col != null {
-    let header = if $no_header {""} else {
-      let uniq_bit = if $unique {'unique '} else {""}
-      $"(ansi attr_dimmed)-- ($uniq_bit)entries in (ansi reset)(ansi attr_italic)($col)(ansi reset)(ansi attr_dimmed):(ansi reset)\n"
-    }
-    $to_display | get $col |
-      if $unique {uniq} else {$in} |
-      $header ++ ($in | grid --color) |
-      less-wrapper
-    print "" # When called from keybinding, if the output of 'grid' is just one line,
-             # the new prompt can sometimes by rendered right over the output
-             # in some cases
-  }
-}
-
-# A version of 'columns' that returns the types too
-export def typed-columns [] {
-  [$in] | flatten | first | # To ensure we always get a record here
-    describe -d | get columns | transpose key val |
-    each {{name: $in.key, type: $in.val.type}} 
-}
-
-# Show the columns from the input table and their types
-export def columns-less [] {
-  typed-columns | each {|col|
-    $"($col.name) (ansi attr_italic)\(($col.type))(ansi reset)"
-  } |
-    wrap columns |
-    grid-less
-}
-
-# List the known viewer names
-export def viewers [] {
+def list-viewers [] {
   $env.repage.viewers | columns
 }
 
 # Execute a viewer from $env.repage.viewers on $in
 export def in [
-  --viewer (-v): string@viewers = "less"
+  --viewer (-v): string@list-viewers = "less"
 ] {
   match ($env.repage.viewers | get -i $viewer) {
     null => {
@@ -176,13 +102,13 @@ export def in [
 }
 
 def complete-ans-columns [] {
-  ans | typed-columns | rename value description
+  ans | viewers typed-columns | rename value description
 }
 
 # Show the last recorded result in full width inside a viewer
 export def main [
   --select (-s) # Open a dropdown list to select the viewer (ignore -v then)
-  --viewer (-v): string@viewers = "less"
+  --viewer (-v): string@list-viewers = "less"
                 # Which viewer (from $env.repage.viewers) to use
   --wrap (-w): oneof<closure, nothing> = null
       # Process the recorded result (post column filtering) before showing it
@@ -191,7 +117,7 @@ export def main [
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
-    try { viewers | input list --fuzzy "Viewer:" }
+    try { list-viewers | input list --fuzzy "Viewer:" }
   } else {$viewer}
   if $viewer != null and ($env.repage.__recorded? | describe) != nothing {
     $env.repage.__recorded |
@@ -231,6 +157,17 @@ export def render-ans-summary [
     $"($length)(ansi reset)(ansi $color)($ans_type)(ansi reset)($suffix)"
   }
 }
+
+# The default set of viewers used by repage when you import this module
+export def default-viewers []: nothing -> record {{
+  "columns":   {|| viewers columns-less}
+  "less":      {|| viewers table-less}
+  "grid-all":  {|| viewers grid-less}
+  "grid-uniq": {|| viewers grid-less --unique}
+  "explore":   {|| explore --index}
+  "fx":        {|| to jsonl | FX_COLLAPSED=1 ^fx}
+  "tw":        {|| to csv | ^tw}
+}}
 
 def cmd [cmd] {
   {send: ExecuteHostCommand, cmd: $cmd}
