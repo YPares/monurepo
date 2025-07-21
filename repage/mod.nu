@@ -70,8 +70,8 @@ export def ans [] {
 
 # The default set of viewers used by repage when you import this module
 export def default-viewers []: nothing -> record {{
-  "columns":   {|| columns | wrap columns | grid-less}
   "less":      {|| table-less}
+  "columns":   {|| columns-less}
   "grid-all":  {|| grid-less}
   "grid-uniq": {|| grid-less --unique}
   "explore":   {|| explore --index}
@@ -122,6 +122,14 @@ export def grid-less [
              # the new prompt can sometimes by rendered right over the output
              # in some cases
   }
+}
+
+# Show the columns from the input table and their types
+export def columns-less [] {
+  [$in] | flatten | first | # To ensure we always get a record here
+    describe -d | get columns | transpose key val | each {|col|
+      $"($col.key) (ansi attr_italic)\(($col.val.type))(ansi reset)"
+    } | wrap columns | grid-less
 }
 
 # List the known viewer names
