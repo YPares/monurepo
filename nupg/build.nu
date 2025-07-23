@@ -1,6 +1,8 @@
 use inspect.nu
 use store/internals.nu *
 
+use ../repage/viewers.nu typed-columns
+
 const keywords_file = (
   path self | path dirname | path join keywords.txt
 )
@@ -125,6 +127,31 @@ export def main [
   let left = if $bracket_all {"("} else {""}
   let right = if $bracket_all {")"} else {""}
   $args | bracket --left $left --right $right --sep $sep
+}
+
+# Inline the contents of a nu table into a query
+# The final table will be ($in ++ $table)
+#
+# Will use the mappings defined in $env.nupg.conversions.nu_to_pg
+export def recordset [
+  --name (-n) = "row" # How to name each record (row) in the query
+  table: table = []
+]: [nothing -> string, table -> string] {
+  let table = ($in | default []) ++ $table
+  if ($table | is-empty) {
+    error make -u {msg: "recordset: No row was given"}
+  }
+
+  let types = $table | typed-columns |
+    join --left ($env.nupg.conversions.nu_to_pg) type nu_type 
+
+  let pg_cols = $types |
+    each {
+      $"\"($in.name)\" ($in.pg_type? | default "jsonb")"
+    } |
+    str join ","
+
+  $"jsonb_to_recordset\('($table | to json --raw)') as ($name)\(($pg_cols))"
 }
 
 export alias open = __open

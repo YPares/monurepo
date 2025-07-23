@@ -1,5 +1,5 @@
 # A version of 'columns' that returns the types too
-export def typed-columns [] {
+export def typed-columns []: any -> table<name: string, type: string> {
   [$in] | flatten | first | # To ensure we always get a record here
     describe -d | get columns | transpose key val |
     each {{name: $in.key, type: $in.val.type}} 

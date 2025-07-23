@@ -1,6 +1,11 @@
 export use run.nu
 export use build.nu main
-use build.nu complete-build
+use build.nu [
+  complete-build
+]
+export use build.nu [
+  recordset
+]
 export use inspect.nu
 export use pretty.nu
 export use store
@@ -13,20 +18,29 @@ export-env {
   $env.PSQL_SCHEMA = "public"
 
   $env.nupg = {
-    # The table of conversions to perform, depending on the type of the rows
-    # of the query detected by psql. Each conversion is composed of two parts:
-    # 
-    # - an in-query part (pg_convert):
-    #     a postgres wrapper applied to columns of this type
-    # - a post-query part (nu_convert):
-    #     a nushell closure applied to returned values transformed
-    #     by the in-query conversion
-    # 
-    # Any of these two parts can be null, in which case the value will just pass
-    # through untransformed.
-    #
-    # See 'default-conversions' to check how this conversion table should be laid out
-    conversions: (default-conversions)
+    conversions: {
+      # The table of conversions to perform on query results,
+      # depending on the type of the rows of the query detected by psql.
+      #
+      # Each conversion is composed of two parts:
+      # 
+      # - an in-query part (pg_convert):
+      #     a postgres wrapper applied to columns of this type
+      # - a post-query part (nu_convert):
+      #     a nushell closure applied to returned values transformed
+      #     by the in-query conversion
+      # 
+      # Any of these two parts can be null, in which case the value will just pass
+      # through untransformed.
+      pg_to_nu: (default-pg-to-nu-conversions),
+
+      # The table of conversions to perform on the nushell data that should
+      # be injected into queries (via the 'recordset' command)
+      #
+      # Any nushell datatype that is not present in this conversions table
+      # will be mapped to 'JSONB'
+      nu_to_pg: (default-nu-to-pg-conversions)
+    } 
 
     # Whether to read the user's config files for the tools used internally
     user_configs: {
@@ -48,14 +62,14 @@ export-env {
       is_nullable: bool
     }
   } catch {
-    print -e "Error when creating nupg_schema_cache in-memory sqlite table. Maybe it already exists?"
+    print -e "Error when creating the 'nupg_schema_cache' in-memory SQLite table. Maybe it already exists?"
   }
 }
 
-# The default set of conversions performed by nupg
+# The default set of conversions performed by nupg on query results
 #
 # You can use this as a base to which to add your own extra conversions
-export def default-conversions [
+export def default-pg-to-nu-conversions [
 ]: nothing -> table<pg_type: oneof<string,list<string>>, pg_convert: oneof<closure,nothing>, nu_convert: oneof<closure,nothing>> {
   [
     [pg_type pg_convert nu_convert];
@@ -66,9 +80,27 @@ export def default-conversions [
       {from json}
     ]
     [[json jsonb] null  {from json}]
-    [[timestamp "timestamp with time zone"]
+    [["timestamp without time zone" "timestamp with time zone"]
       null
       {into datetime}]
+  ]
+}
+
+# The default set of conversions performed by nupg when building queries
+# out of nu datatypes
+#
+# You can use this as a base to which to add your own extra conversions
+export def default-nu-to-pg-conversions [
+]: nothing -> table<nu_type: oneof<string,list<string>>, pg_type: string> {
+  [
+    [nu_type  pg_type];
+
+    [string   text]
+    [int      integer]
+    [float    real]
+    [bool     boolean]
+    [filesize integer]
+    [datetime "timestamp with time zone"]
   ]
 }
 

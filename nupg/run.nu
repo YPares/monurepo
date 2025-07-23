@@ -45,7 +45,7 @@ export def columns [
 
 # Pipe in a PostgreSQL SELECT query to get its result as a nushell table,
 # converting the columns to Nushell types along the way, using the conversion
-# functions defined in $env.nupg.conversions
+# functions defined in $env.nupg.conversions.pg_to_nu
 #
 # Will use $env.PSQL_DB_STRING as the connection string of the database
 # to connect to
@@ -74,7 +74,7 @@ export def main [
   let cols = $query | columns --no-stored-queries # We do no rewrap
 
   let conversions = $cols |
-    join --left ($env.nupg.conversions | flatten pg_type) pg_type |
+    join --left ($env.nupg.conversions.pg_to_nu | flatten pg_type) pg_type |
     select column_name pg_convert? nu_convert?
 
   # We apply the pg_convert in-query conversions:
