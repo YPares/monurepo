@@ -59,12 +59,15 @@ export def --env record-and-render [
 export def --env record [
   --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
 ] {
-  [($in | describe -d) $in] |
-  if $force or $in.0.type != "nothing" and (
+  [
+    ($in | describe -d)
+    $in
+  ] | if $force or $in.0.type != "nothing" and (
     $env.repage.recorded_types? == null
     or $in.0.type in $env.repage.recorded_types
-    or $in.0.subtype?.type in $env.repage.recorded_types
-      # .subtype exists for streams, and gives the type of the data
+    or (try { $in.0.subtype?.type in $env.repage.recorded_types }) == true
+      # .subtype may exist but not be a record.
+      # .subtype record exists for streams, and gives the type of the data
       # when the stream is resolved
   ) {
     $env.repage.__recorded = $in.1
