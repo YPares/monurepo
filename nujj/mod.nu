@@ -25,6 +25,10 @@ export-env {
   }
 }
 
+def cmd [cmd] {
+  {send: ExecuteHostCommand, cmd: $cmd}
+}
+
 export def default-keybindings [--prefix = "nujj "] {
   [
     [modifier    keycode        event];
