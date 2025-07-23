@@ -41,5 +41,6 @@ export def schema [
     update is_nullable {$in == 1} |
     group-by table_name --to-table |
     default -e [] | # on empty inputs, group-by always returns an empty _record_
-    rename table_name columns
+    rename table_name columns |
+    update columns {reject key table_name}
 }
