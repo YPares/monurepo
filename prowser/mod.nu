@@ -192,19 +192,26 @@ export def --env snap [
       let name_to_restore = $state_to_restore.name?
       snap set $name_to_restore $state_to_restore
       if $name_to_restore != null {
-        print $"Back to previous state \(based on snap '($name_to_restore)')"
+        print $"Back to previous state \(based on snapshot '($name_to_restore)')"
       } else {
         print "Back to previous state"
       }
     } else {
-      error make {msg: "No previous snap known in this shell"}
+      error make -u {msg: "No previous snapshot known in this shell"}
     }
   } else {
     accept
     let verb = if $name == $env.prowser.__cur_snap_name {"Reloaded"} else {"Loaded"}
     $env.prowser.__prev_dirs_state = snap current-state
-    snap set $name (snap saved | get $name)
-    print $"($verb) snapshot '($name)'"
+    match (snap saved | get -i $name) {
+      null => {
+        error make -u {msg: $"Snapshot '($name)' unknown"}
+      }
+      $snap => {
+        snap set $name $snap
+        print $"($verb) snapshot '($name)'"
+      }
+    }
   }
 }
 
