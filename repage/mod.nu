@@ -67,10 +67,11 @@ export-env {
 export def --env record-and-render [
   --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
 ]: any -> string {
-  tee {do $env.repage.display_output} | record --force=$force
+  record --force=$force | do $env.repage.display_output 
 }
 
-# Record the value fed via pipeline input, if this value fits some conditions
+# Record the value fed via pipeline input, if this value fits some conditions,
+# and return it
 export def --env record [
   --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
 ] {
@@ -86,6 +87,9 @@ export def --env record [
       # when the stream is resolved
   ) {
     $env.repage.__recorded = $in.1
+    $in.1
+  } else {
+    $in.1
   }
 }
 
