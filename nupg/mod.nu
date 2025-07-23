@@ -37,6 +37,19 @@ export-env {
     # A file in which to store reusable queries
     store: "nupg-query-store.toml"
   }
+
+  try {
+    # A table to cache the schemas fetched for autocompletion
+    stor create -t nupg_schema_cache -c {
+      key: str
+      table_name: str
+      column_name: str
+      pg_type: str
+      is_nullable: bool
+    }
+  } catch {
+    print -e "Error when creating nupg_schema_cache in-memory sqlite table. Maybe it already exists?"
+  }
 }
 
 # The default set of conversions performed by nupg
