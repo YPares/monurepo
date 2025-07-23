@@ -25,14 +25,22 @@ export def raw []: string -> list<any> {
 # Get the columns and types returned by a query
 export def columns [
   --file (-f): path # Read SQL statement from a file instead
+  --no-stored-queries (-S) # Do not use stored queries
 ]: [
   string -> table<column_name: string, pg_type: string>
   nothing -> table<column_name: string, pg_type: string>
 ] {
   let query = if $file != null {
     open --raw $file
-  } else {$in}
-  $'($query) \gdesc' | raw | rename column_name pg_type
+  } else {$in} |
+    wrap-with-stored --no-stored-queries=$no_stored_queries
+  
+  let cols = $'($query) \gdesc' | raw | rename column_name pg_type
+  if ($cols | is-empty) {
+    error make -u {msg: "psql could not evaluate query result column types"}
+  } else {
+    $cols
+  }
 }
 
 # Pipe in a PostgreSQL SELECT query to get its result as a nushell table,
@@ -43,8 +51,8 @@ export def columns [
 # to connect to
 export def main [
   --file (-f): path # Read SQL statement from a file instead
-  --verbose (-v) # Print the query
   --no-stored-queries (-S) # Do not use stored queries
+  --verbose (-v) # Print the query
 ]: [
   string -> list<any>
   nothing -> list<any>
@@ -53,27 +61,19 @@ export def main [
     open --raw $file
   } else if ($in | describe) == "nothing" {
     error make {msg: "nupg: Either feed a query as input or use --file"}      
-  } else {$in}
-
-  # We wrap the query with the stored queries, in case they are needed:
-  let query = if $no_stored_queries {
-    $query
   } else {
-    let stored_queries = stored-queries
-    if ($stored_queries | is-empty) {
-      $query
-    } else {
-      let stored_queries = $stored_queries |    
-        transpose key val |
-        each {$"($in.key) AS \(($in.val))"} |
-        str join ",\n"
-      $"WITH ($stored_queries)\n($query)"
-    }
+    $in
+  } |
+    wrap-with-stored --no-stored-queries=$no_stored_queries
+
+  if $verbose {
+    print $query
   }
 
   # We get the types returned by the query:
-  let types = $query | columns
-  let conversions = $types |
+  let cols = $query | columns --no-stored-queries # We do no rewrap
+
+  let conversions = $cols |
     join --left ($env.nupg.conversions | flatten pg_type) pg_type |
     select column_name pg_convert? nu_convert?
 
@@ -84,10 +84,11 @@ export def main [
   } else {
     let passthrough_cols = $conversions |
       where pg_convert? == null |
-      get column_name | each {$'"($in)"'}
+      get column_name |
+      each {$'"($in)"'}
     let converted_cols = $pg_conversions | each {|c|
-        $'($c.column_name | do $c.pg_convert) as ($c.column_name)'
-      }
+      $'($c.column_name | do $c.pg_convert) as ($c.column_name)'
+    }
     $"select ($passthrough_cols ++ $converted_cols | str join ',') from \(($query))"
   }
 
@@ -101,8 +102,5 @@ export def main [
         try {$x | do $c.nu_convert} catch {$x}
       }
     ]}
-  if $verbose {
-    print $query
-  }
   $query | raw | run-updates $nu_conversions
 }

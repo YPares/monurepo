@@ -23,3 +23,23 @@ export def complete-stored [] {
     $stored.columns | cols-to-desc
   } | rename -c {name: value}
 }
+
+export def wrap-with-stored [
+  --no-stored-queries (-S) # Do not use stored queries
+] {
+  let query = $in
+  if $no_stored_queries {
+    $query
+  } else {
+    let stored_queries = stored-queries
+    if ($stored_queries | is-empty) {
+      $query
+    } else {
+      let stored_queries = $stored_queries |    
+        transpose key val |
+        each {$"($in.key) AS \(($in.val))"} |
+        str join ",\n-------------\n"
+      $"WITH\n($stored_queries)\n---------------\n($query)"
+    }
+  }
+}
