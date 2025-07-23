@@ -20,8 +20,7 @@ export def --wrapped less-wrapper [...args] {
 
 # Render the input table in full width, then feed in into less
 export def table-less [] {
-  $env.config.table.header_on_separator = true
-  $env.config.table.footer_inheritance = false
+  do --env $env.repage.table_less_override_env
   $in | table -e -w -1 | less-wrapper
 }
 

@@ -37,6 +37,21 @@ export-env {
         # TODO: find a way to avoid that
     }
 
+    # Override your env specifically for the case of 'table-less',
+    # notably Nu formatting settings.
+    # 
+    # You can use this to display some datatypes in more detail in the
+    # pager context
+    table_less_override_env: {||
+      ## These make sense if --header 1 is used in 'less_args':
+      # $env.config.table.header_on_separator = true
+      # $env.config.table.footer_inheritance = false
+
+      # $env.config.table.padding = {left: 0, right: 0}
+      $env.config.datetime_format.table = "%c"
+      $env.config.filesize.precision = 3
+    }
+
     # A record of closures that render on stdout a value that is piped in
     #
     # You can add your own functions to it:
