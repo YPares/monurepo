@@ -61,7 +61,8 @@ export def where_ [
 }
 
 export def complete-build [cmdline pos] {
-  mut values = $keywords_file | open | lines
+  mut values = $keywords_file | open | lines |
+    each {{value: $in, style: {fg: yellow}}}
 
   mut include_columns = false
 
@@ -81,6 +82,7 @@ export def complete-build [cmdline pos] {
   for tbl in $schema {
     $values ++= [{
       value: $tbl.table_name
+      style: {fg: magenta}
       description: (
         $tbl.columns | cols-to-desc
       )
@@ -89,12 +91,19 @@ export def complete-build [cmdline pos] {
     if $include_columns {
       $values ++= $tbl.columns | each {|col| {
         value: $"($tbl.table_name).($col.column_name)"
+        style: {fg: blue}
         description: $"($col.pg_type | str upcase)(if $col.is_nullable {""} else {' NOT NULL'})"
       }}
     }
   }
   
-  $values ++ (complete-stored)
+  {
+    options: {
+      case_sensitive: false
+      completion_algorithm: fuzzy
+    }
+    completions: ($values ++ (complete-stored))
+  }
 }
 
 # Main function to build an sql query

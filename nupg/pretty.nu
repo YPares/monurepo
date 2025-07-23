@@ -1,7 +1,9 @@
+# Reformat an SQL query with 'sql-formatter'
 export def format []: string -> string {
   ^sql-formatter -l postgresql
 }
 
+# Syntax-highlight an SQL query with 'bat'
 export def highlight [--name (-n) = "query"]: string -> string {
   (^bat -l sql --file-name $name
     ...(if $env.nupg.user_configs.bat {[]} else {
@@ -10,8 +12,7 @@ export def highlight [--name (-n) = "query"]: string -> string {
   )
 }
 
-# Reformat an SQL query with 'sql-formatter' (nixpkgs#sql-formatter),
-# and syntax-highlight it with bat (nixpkgs#bat)
+# Reformat an SQL query with 'sql-formatter' and syntax-highlight it with 'bat'
 export def main []: string -> string {
   format | highlight 
 }
