@@ -127,7 +127,12 @@ def --env __par-each [closure: closure] {
 }
 
 export def "snap current-state" [] {
-  {list: $env.DIRS_LIST, pos: $env.DIRS_POSITION, name: $env.prowser.__cur_snap_name}
+  {
+    list: $env.DIRS_LIST
+    pos: $env.DIRS_POSITION
+    depth_idx: $env.prowser.__cur_depth_idx
+    name: $env.prowser.__cur_snap_name
+  }
 }
 
 def "snap saved" [] {
@@ -150,6 +155,7 @@ def --env "snap set" [name snap] {
   $env.prowser.__cur_snap_name = $name
   $env.DIRS_LIST = $snap.list
   $env.DIRS_POSITION = $snap.pos
+  $env.prowser.__cur_depth_idx = $snap.depth_idx? | default 0
   reset
 }
 
