@@ -6,7 +6,7 @@ use ../pretty.nu
 # Add a query to the store file
 export def main [name: string]: string -> nothing {
   let query = $in | pretty format
-  let cols = $query | run columns
+  let cols = $query | run describe
   get-store |
     merge {$name: {query: $query, columns: $cols}} |
     save -f $env.nupg.store

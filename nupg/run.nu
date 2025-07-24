@@ -14,7 +14,7 @@ def run-updates [
   }
 }
 
-# Run an SQL statement without performing any of the column conversion
+# Run an SQL statement without performing any of the column conversions
 export def raw []: string -> list<any> {
   (^psql
     ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
@@ -22,8 +22,7 @@ export def raw []: string -> list<any> {
   ) | from csv
 }
 
-# Get the columns and types returned by a query
-export def columns [
+def __describe [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
 ]: [
@@ -43,12 +42,11 @@ export def columns [
   }
 }
 
-# Pipe in a PostgreSQL SELECT query to get its result as a nushell table,
+# Pipe in a PostgreSQL query to get its result as a nushell table,
 # converting the columns to Nushell types along the way, using the conversion
 # functions defined in $env.nupg.conversions.pg_to_nu
 #
-# Will use $env.PSQL_DB_STRING as the connection string of the database
-# to connect to
+# Will read the db connection string from $env.PSQL_DB_STRING
 export def main [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
@@ -71,7 +69,7 @@ export def main [
   }
 
   # We get the types returned by the query:
-  let cols = $query | columns --no-stored-queries # We do no rewrap
+  let cols = $query | __describe --no-stored-queries # We do no rewrap
 
   let conversions = $cols |
     join --left ($env.nupg.conversions.pg_to_nu | flatten pg_type) pg_type |
@@ -104,3 +102,8 @@ export def main [
     ]}
   $query | raw | run-updates $nu_conversions
 }
+
+# Get the columns and types returned by a query
+#
+# Will read the db connection string from $env.PSQL_DB_STRING
+export alias describe = __describe

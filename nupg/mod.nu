@@ -1,14 +1,18 @@
-export use run.nu
-export use build.nu main
-use build.nu [
-  complete-build
+export use run.nu [
+  main
+  describe
 ]
 export use build.nu [
+  main
   recordset
 ]
 export use inspect.nu
 export use pretty.nu
 export use store
+
+use build.nu [
+  complete-build
+]
 
 export-env {
   # By default, will connect on local UNIX socket to the 'postgres' database
