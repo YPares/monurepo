@@ -14,26 +14,32 @@ def run-updates [
   }
 }
 
-# Convert $in into a string that can be inlined into postgres queries
-export def to-quoted-str [] {
-  into string | str replace -a "'" "''" | $"'($in)'"
+# Convert $in into a string that can be inlined into postgres queries,
+# via its JSON representation.
+# The produced string is usable either as JSONB or as some PostgreSQL
+# atomic type
+export def to-quoted-json []: any -> string {
+  to json --raw --serialize |
+  str replace -ra "^\"|\"$" "" |
+  str replace -a "'" "''" |
+  $"'($in)'"
 }
 
-# Run an SQL statement without performing any conversion
+# Run an SQL statement without performing any output conversion
 export def raw [
-  ...args: any # Args to use to replace the $1, $2, $3, etc. placeholders
-               # in the query.
-               # Each one of these must be of a type that's directly convertible
-               # to a string
+  ...args: any
+    # Args to use to replace the $1, $2, $3, etc. placeholders
+    # in the query.
 ]: string -> list<any> {
   match $args {
     [] => {
       $in
     }
     _ => {
-      $in + " \\bind " + ($args | each {to-quoted-str} | str join ' ')
+      $in + " \\bind " + ($args | each {to-quoted-json} | str join ' ')
     }
-  } | (
+  } |
+    tee {std log debug $"Running: ($in)"} | (
     ^psql --csv
       ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
       $env.PSQL_DB_STRING
@@ -68,7 +74,6 @@ def __describe [
 export def main [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
-  --verbose (-v) # Print the query
   ...args: any # Args to use to replace the $1, $2, $3, etc. placeholders
                # in the query
 ]: [
@@ -83,10 +88,6 @@ export def main [
     $in
   } |
     wrap-with-stored --no-stored-queries=$no_stored_queries
-
-  if $verbose {
-    print $query
-  }
 
   # We get the types returned by the query:
   let cols = $query | __describe --no-stored-queries # We do no rewrap

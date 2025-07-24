@@ -1,5 +1,5 @@
 use inspect.nu
-use run.nu to-quoted-str
+use run.nu to-quoted-json
 use store/internals.nu *
 
 use ../repage/viewers.nu typed-columns
@@ -158,9 +158,9 @@ export def recordset [
     str join ","
 
   let contents = if $placeholder == null {
-    $table | to json --raw --serialize | to-quoted-str
+    $table | to-quoted-json
   } else {
-    "$" + $"($placeholder)"
+    $"$($placeholder)"
   }
   $"jsonb_to_recordset\(($contents)) as ($name)\(($pg_cols))"
 }
