@@ -1,4 +1,5 @@
 use inspect.nu
+use run.nu to-quoted-str
 use store/internals.nu *
 
 use ../repage/viewers.nu typed-columns
@@ -129,11 +130,7 @@ export def main [
   $args | bracket --left $left --right $right --sep $sep
 }
 
-def to-escaped-json [] {
-  to json --raw --serialize | into string | str replace -a "'" "''"
-}
-
-# Inline the contents of a nu table into a query. Each row of the nu table
+# Use the contents of a nu table into a query. Each row of the nu table
 # will be treated as a separated row (record) in PostgreSQL
 # 
 # The final table will be ($in ++ $table)
@@ -141,6 +138,9 @@ def to-escaped-json [] {
 # Will use the mappings defined in $env.nupg.conversions.nu_to_pg
 export def recordset [
   --name (-n) = "record" # How to name each record (row) in the query
+  --placeholder (-p): int
+    # Do not splice in the table, instead insert its inferred type
+    # along with a '$n' placeholder
   table: table = []
 ]: [nothing -> string, table -> string] {
   let table = ($in | default []) ++ $table
@@ -157,7 +157,12 @@ export def recordset [
     } |
     str join ","
 
-  $"jsonb_to_recordset\('($table | to-escaped-json)') as ($name)\(($pg_cols))"
+  let contents = if $placeholder == null {
+    $table | to json --raw --serialize | to-quoted-str
+  } else {
+    "$" + $"($placeholder)"
+  }
+  $"jsonb_to_recordset\(($contents)) as ($name)\(($pg_cols))"
 }
 
 export alias open = __open

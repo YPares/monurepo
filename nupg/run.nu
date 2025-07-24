@@ -14,11 +14,29 @@ def run-updates [
   }
 }
 
-# Run an SQL statement without performing any of the column conversions
-export def raw []: string -> list<any> {
-  (^psql
-    ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
-    $env.PSQL_DB_STRING --csv
+# Convert $in into a string that can be inlined into postgres queries
+export def to-quoted-str [] {
+  into string | str replace -a "'" "''" | $"'($in)'"
+}
+
+# Run an SQL statement without performing any conversion
+export def raw [
+  ...args: any # Args to use to replace the $1, $2, $3, etc. placeholders
+               # in the query.
+               # Each one of these must be of a type that's directly convertible
+               # to a string
+]: string -> list<any> {
+  match $args {
+    [] => {
+      $in
+    }
+    _ => {
+      $in + " \\bind " + ($args | each {to-quoted-str} | str join ' ')
+    }
+  } | (
+    ^psql --csv
+      ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
+      $env.PSQL_DB_STRING
   ) | from csv
 }
 
@@ -51,6 +69,8 @@ export def main [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
   --verbose (-v) # Print the query
+  ...args: any # Args to use to replace the $1, $2, $3, etc. placeholders
+               # in the query
 ]: [
   string -> list<any>
   nothing -> list<any>
@@ -100,7 +120,7 @@ export def main [
         try {$x | do $c.nu_convert} catch {$x}
       }
     ]}
-  $query | raw | run-updates $nu_conversions
+  $query | raw ...$args | run-updates $nu_conversions
 }
 
 # Get the columns and types returned by a query
