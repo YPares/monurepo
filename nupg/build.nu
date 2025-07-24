@@ -129,17 +129,23 @@ export def main [
   $args | bracket --left $left --right $right --sep $sep
 }
 
-# Inline the contents of a nu table into a query
+def to-escaped-json [] {
+  to json --raw --serialize | into string | str replace -a "'" "''"
+}
+
+# Inline the contents of a nu table into a query. Each row of the nu table
+# will be treated as a separated row (record) in PostgreSQL
+# 
 # The final table will be ($in ++ $table)
 #
 # Will use the mappings defined in $env.nupg.conversions.nu_to_pg
 export def recordset [
-  --name (-n) = "row" # How to name each record (row) in the query
+  --name (-n) = "record" # How to name each record (row) in the query
   table: table = []
 ]: [nothing -> string, table -> string] {
   let table = ($in | default []) ++ $table
   if ($table | is-empty) {
-    error make -u {msg: "recordset: No row was given"}
+    error make -u {msg: "recordset: Table is empty"}
   }
 
   let types = $table | typed-columns |
@@ -151,7 +157,7 @@ export def recordset [
     } |
     str join ","
 
-  $"jsonb_to_recordset\('($table | to json --raw)') as ($name)\(($pg_cols))"
+  $"jsonb_to_recordset\('($table | to-escaped-json)') as ($name)\(($pg_cols))"
 }
 
 export alias open = __open
