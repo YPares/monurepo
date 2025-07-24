@@ -44,3 +44,10 @@ export def schema [
     rename table_name columns |
     update columns {reject key table_name}
 }
+
+# List available databases
+export def databases [
+]: nothing -> table {
+  "\\list" | run raw |
+    rename -b {str downcase | str replace " " "_"}
+}
