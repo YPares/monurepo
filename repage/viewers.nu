@@ -20,8 +20,8 @@ export def --wrapped less-wrapper [...args] {
 
 # Render the input table in full width, then feed in into less
 export def table-less [] {
-  do --env $env.repage.table_less_override_env
-  $in | table -e -w -1 | less-wrapper
+  do --env $env.repage.table_less.override_env
+  $in | table -e -w (do $env.repage.table_less.get_max_width) | less-wrapper
 }
 
 # Select a column from the input table, then render it with 'grid',
