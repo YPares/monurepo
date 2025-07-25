@@ -60,6 +60,12 @@ export-env {
       }
     }
 
+    grid_less: {
+      # When showing filenames, should we colorize them with ls colors
+      use_ls_colors: true
+      # When showing unique values, which color to show the counts in
+      count_color: cyan
+    }
 
     # A record of closures that render on stdout a value that is piped in
     #

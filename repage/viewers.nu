@@ -51,8 +51,17 @@ export def grid-less [
       $"(ansi attr_dimmed)-- ($uniq_bit)entries in (ansi reset)(pretty-colname $col)(ansi attr_dimmed):(ansi reset)\n"
     }
     $to_display | get $col |
-      if $unique {uniq} else {$in} |
-      $header ++ ($in | grid --color) |
+      if $unique {
+        uniq --count | each {
+          let count = if $in.count > 1 {
+            $" (ansi $env.repage.grid_less.count_color)\(x($in.count))(ansi reset)"
+          } else {""}
+          $"($in.value)($count)"
+        }
+      } else {$in} |
+      $header ++ (
+        $in | grid --color=$env.repage.grid_less.use_ls_colors
+      ) |
       less-wrapper
     print "" # When called from keybinding, if the output of 'grid' is just one line,
              # the new prompt can sometimes by rendered right over the output
