@@ -110,9 +110,9 @@ export def default-nu-to-pg-conversions [
 
 # Runs 'nupg build ... | nupg run'
 export def main [
-  ...tokens: string@complete-build
+  ...tokens: any@complete-build
   --variables (-v): record = {}
   --parameters (-p): list<any> = []
-] {
+]: nothing -> list<any> {
   build ...$tokens | run --variables=$variables ...$parameters
 }

@@ -30,10 +30,9 @@ export def bracket [
   --left (-l): string = "("
   --right (-r): string = ")"
   --sep (-s): string = " "
-  ...contents: string
-]: [list<string> -> string, nothing -> string] {
+  ...contents: any
+]: [list<any> -> string, nothing -> string] {
   let contents = ($in | default []) ++ $contents
-  let contents = $contents | str trim | where {is-not-empty}
   if ($contents | is-empty) {
     $contents
   } else {
@@ -123,8 +122,8 @@ export def complete-build [cmdline pos] {
 export def main [
   --bracket-all (-b)
   --sep (-s) = "\n"
-  ...args: string@complete-build
-] {
+  ...args: any@complete-build
+]: nothing -> string {
   let left = if $bracket_all {"("} else {""}
   let right = if $bracket_all {")"} else {""}
   $args | bracket --left $left --right $right --sep $sep
