@@ -27,18 +27,27 @@ export def to-quoted-json []: any -> string {
 
 # Run an SQL statement without performing any output conversion
 export def raw [
-  ...args: any
-    # Args to use to replace the $1, $2, $3, etc. placeholders
+  --variables (-v): record = {}
+    # Values to use to replace the :foo, :"foo", :'foo' variables in the query
+  ...params: any
+    # Values to use to replace the $1, $2, $3, etc. placeholders
     # in the query.
 ]: string -> list<any> {
-  match $args {
-    [] => {
-      $in
-    }
-    _ => {
-      $in + " \\bind " + ($args | each {to-quoted-json} | str join ' ')
-    }
-  } |
+  [
+    ...($variables |
+      transpose key val |
+      each {|var|
+        $"\\set ($var.key) ($var.val | to-quoted-json)"
+      })
+    $in
+    ...(match $params {
+      [] => []
+      _ => [(
+        " \\bind " + ($params | each {to-quoted-json} | str join ' ')
+      )]
+    })
+  ] |
+    str join "\n" |
     tee {std log debug $"Running: ($in)"} | (
     ^psql --csv
       ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
@@ -49,6 +58,10 @@ export def raw [
 def __describe [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
+  --variables (-v): record = {} 
+    # Values to use to replace the :foo, :"foo", :'foo' variables in the query.
+    # Contrary to positional placeholders ($1, $2 etc.), these need to be
+    # set for the query to be valid PostgreSQL
 ]: [
   string -> table<column_name: string, pg_type: string>
   nothing -> table<column_name: string, pg_type: string>
@@ -58,7 +71,7 @@ def __describe [
   } else {$in} |
     wrap-with-stored --no-stored-queries=$no_stored_queries
   
-  let cols = $'($query) \gdesc' | raw | rename column_name pg_type
+  let cols = $'($query) \gdesc' | raw --variables=$variables | rename column_name pg_type
   if ($cols | is-empty) {
     error make -u {msg: "psql could not evaluate query result column types"}
   } else {
@@ -74,8 +87,11 @@ def __describe [
 export def main [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
-  ...args: any # Args to use to replace the $1, $2, $3, etc. placeholders
-               # in the query
+  --variables (-v): record = {}
+    # Values to use to replace the :foo, :"foo", :'foo' variables in the query
+  ...params: any
+    # Values to use to replace the $1, $2, $3, etc. placeholders
+    # in the query.
 ]: [
   string -> list<any>
   nothing -> list<any>
@@ -90,7 +106,7 @@ export def main [
     wrap-with-stored --no-stored-queries=$no_stored_queries
 
   # We get the types returned by the query:
-  let cols = $query | __describe --no-stored-queries # We do no rewrap
+  let cols = $query | __describe --variables=$variables --no-stored-queries
 
   let conversions = $cols |
     join --left ($env.nupg.conversions.pg_to_nu | flatten pg_type) pg_type |
@@ -121,7 +137,7 @@ export def main [
         try {$x | do $c.nu_convert} catch {$x}
       }
     ]}
-  $query | raw ...$args | run-updates $nu_conversions
+  $query | raw --variables=$variables ...$params | run-updates $nu_conversions
 }
 
 # Get the columns and types returned by a query

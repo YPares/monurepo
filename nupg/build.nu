@@ -138,9 +138,12 @@ export def main [
 # Will use the mappings defined in $env.nupg.conversions.nu_to_pg
 export def recordset [
   --name (-n) = "record" # How to name each record (row) in the query
-  --placeholder (-p): int
+  --parameter (-p): int
     # Do not splice in the table, instead insert its inferred type
-    # along with a '$n' placeholder
+    # along with a $n positional placeholder
+  --variable (-v): string
+    # Do not splice in the table, instead insert its inferred type
+    # along with a :'name' named placeholder
   table: table = []
 ]: [nothing -> string, table -> string] {
   let table = ($in | default []) ++ $table
@@ -157,10 +160,16 @@ export def recordset [
     } |
     str join ","
 
-  let contents = if $placeholder == null {
-    $table | to-quoted-json
-  } else {
-    $"$($placeholder)"
+  let contents = match [$parameter $variable] {
+    [$p $_] if $p != null => {
+      $"$($p)"
+    }
+    [$_ $v] if $v != null => {
+      $":'($v)'"
+    }
+    _ => {
+      $table | to-quoted-json
+    }
   }
   $"jsonb_to_recordset\(($contents)) as ($name)\(($pg_cols))"
 }
