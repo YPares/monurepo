@@ -216,7 +216,11 @@ export def --env snap [
 }
 
 export def selected-depth [] {
-  $env.prowser.depth_values | get $env.prowser.__cur_depth_idx
+  try {
+    $env.prowser.depth_values | get $env.prowser.__cur_depth_idx
+  } catch {
+    $env.prowser.depth_values.0
+  }
 }
 
 export def --env switch-depth [] {
