@@ -25,6 +25,15 @@ export def to-quoted-json []: any -> string {
   $"'($in)'"
 }
 
+export def --wrapped psql [...args] {
+  (
+    ^psql
+      ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
+      $env.PSQL_DB_STRING
+      ...$args
+  )
+}
+
 # Run an SQL statement without performing any output conversion
 export def raw [
   --variables (-v): record = {}
@@ -48,11 +57,7 @@ export def raw [
     })
   ] |
     str join "\n" |
-    tee {std log debug $"Running: ($in)"} | (
-    ^psql --csv
-      ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
-      $env.PSQL_DB_STRING
-  ) | from csv
+    tee {std log debug $"Running: ($in)"} | psql --csv | from csv
 }
 
 def __describe [

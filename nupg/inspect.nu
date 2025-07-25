@@ -46,8 +46,12 @@ export def schema [
 }
 
 # List available databases
-export def databases [
-]: nothing -> table {
+export def databases []: nothing -> table {
   "\\list" | run raw |
     rename -b {str downcase | str replace " " "_"}
+}
+
+# Show information about current connection
+export def main []: nothing -> string {
+  "\\conninfo" | run psql | collect
 }
