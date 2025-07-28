@@ -26,7 +26,3 @@ $env.config.keybindings = [
 
 See the `export-env` block at the beginning of [mod.nu](./mod.nu) for more
 information about how to customize repage's behaviour.
-
-## Dependencies
-
-- `less` at a version >=600 (the `--header` flag is needed)
