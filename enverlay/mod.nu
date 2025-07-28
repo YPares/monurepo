@@ -50,7 +50,7 @@ export def status [] {
 export def --env load [dir: path = "."] {
   let jid = job spawn {
     sleep 0.1sec
-    print -n $"(ansi default_dimmed)direnv loading...(ansi default)"
+    print -n $"(ansi grey)direnv loading...(ansi default)"
   }
   load-env (__export $dir)
   try { job kill $jid }

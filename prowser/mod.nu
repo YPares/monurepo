@@ -27,6 +27,9 @@ export-env {
       depth_indicator: blue
     }
     get_local_root: {|path| null}
+    finder: {
+      max_height: 40
+    }
   }
 }
 
@@ -227,16 +230,22 @@ export def --env switch-depth [] {
   $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + 1) mod ($env.prowser.depth_values | length)
 }
 
-export def "glob all" [] {
-  glob -l -d (selected-depth) -e $env.prowser.excluded $in
+export def "glob all" [--no-file (-F), --no-dir (-D)] {
+  glob $in -l -d (selected-depth) -e $env.prowser.excluded --no-file=$no_file --no-dir=$no_dir
 }
 
 export def "glob files" [] {
-  glob -lD -d (selected-depth) -e $env.prowser.excluded $in
+  glob all -D
 }
 
 export def "glob dirs" [] {
-  glob -lF -d (selected-depth) -e $env.prowser.excluded $in
+  glob all -F
+}
+
+def then [cls: closure, --else (-e): any] {
+  if $in != null {
+    do $cls $in
+  } else {$else}
 }
 
 export def select-paths [multi: bool, --prompt: string] {
@@ -244,28 +253,33 @@ export def select-paths [multi: bool, --prompt: string] {
     let type = $p | path expand | path type
     let clr = if $type == "dir" {"blue"} else {"default"}
     [ $"(ansi $clr)($p)(ansi reset)(char fs)"
-      $"(ansi attr_dimmed)(ansi attr_italic)($type)(ansi reset)"
+      $type
     ] | str join " "
   } |
   str join "\n" | (
-    fzf --height=40 --reverse --style default --info inline-right
-        ...(if $prompt != null {[--prompt $"($prompt)> "]} else {[]})
+    fzf --reverse --style default --info inline-right
+        ...($env.prowser.finder.max_height? | then {[--height $in]} -e [])
+        ...($prompt | then {[--prompt $"($in)> "]} -e [])
         --ansi --color "pointer:magenta,marker:green"
         --tiebreak end
         --delimiter (char fs) --with-nth 1 --accept-nth 1
         --cycle --exit-0 --select-1
         --keep-right
-        --preview $"
-          echo -n '(ansi attr_italic)(ansi attr_underline)'
-          if [ {2} == dir ]; then
-            echo (ansi blue){1}(ansi reset)
-            \( ls --color {1} | awk '{ print \" ↳ \" $0 }' )
-          else
-            echo {1}:(ansi reset)
-            echo ""
-            bat --color always --terminal-width $FZF_PREVIEW_COLUMNS {1}
-          fi
-        "
+        --with-shell 'nu -n -c'
+        --preview r###'
+          let file = {1}
+          let typ = {2}
+          $env.config.use_ansi_coloring = true
+          match $typ {
+            "dir" => {
+              print $'(ansi blue_italic)($file)(ansi reset):'
+              ls --all --short-names $file | table -w ($env.FZF_PREVIEW_COLUMNS | into int)
+            }
+            _ => {
+              bat --color always --terminal-width $env.FZF_PREVIEW_COLUMNS $file
+            }
+          }
+        '###
         --preview-window "right,60%,noinfo,border-left"
         --color "scrollbar:blue"
         --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-r:cancel,alt-q:abort"
@@ -300,7 +314,7 @@ export def --env browse [
     commandline
   }
   let empty_cmd = $cmd | str trim | is-empty
-  let prompt = $"(if $empty_cmd {'open'} else {'complete'})(if $prompt != null {$"\(($prompt))"} else {""})"
+  let prompt = $"(if $empty_cmd {'open'} else {'complete'})($prompt | then {$"\(($in))"})"
   let elems_before = $cmd |
     str substring 0..(commandline get-cursor) |
     split row -r '\s+'
