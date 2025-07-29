@@ -58,6 +58,8 @@ export-env {
       #
       # -1 means 'no limit'
       get_max_width: {|| -1}
+      # The --depth arg for 'table'
+      depth: 999
     }
 
     grid_less: {
