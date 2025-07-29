@@ -20,8 +20,7 @@ export def --wrapped less-wrapper [...args] {
 
 # Render the input table in full width, then feed in into less
 export def table-less [] {
-  do --env $env.repage.table_less.override_env
-  $in | table -e -w (do $env.repage.table_less.get_max_width) | less-wrapper
+  table -e -w (do $env.repage.table_less.get_max_width) | less-wrapper
 }
 
 # Select a column from the input table, then render it with 'grid',
@@ -60,7 +59,10 @@ export def grid-less [
         }
       } else {$in} |
       $header ++ (
-        $in | grid --color=$env.repage.grid_less.use_ls_colors
+        $in | (
+          grid --color=$env.repage.grid_less.use_ls_colors
+               --separator $"(ansi $env.repage.grid_less.separator_color) │ (ansi reset)"
+        )
       ) |
       less-wrapper
     print "" # When called from keybinding, if the output of 'grid' is just one line,

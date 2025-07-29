@@ -8,7 +8,7 @@ export-env {
     #
     # Will be used in 'record-and-render'
     display_output: {||
-      table -a ((term size).rows * 3 / 4 | $in / 2 | into int) | print
+      table -a ((term size).rows * 3 / 8 | into int) | print
     }
 
     # The types that repage should record as the last result, which
@@ -37,34 +37,36 @@ export-env {
         # TODO: find a way to avoid that
     }
 
+    # Override your env when using a viewer, notably to change your Nu
+    # formatting settings
+    # 
+    # You can use this to display some datatypes in more detail in the
+    # viewer's context
+    override_env: {||
+      ## These make sense if --header 1 is used in 'less_args':
+      # $env.config.table.header_on_separator = true
+      # $env.config.table.footer_inheritance = false
+
+      # $env.config.table.padding = {left: 0, right: 0}
+      $env.config.datetime_format.table = "%c"
+      $env.config.filesize.precision = 3
+    }
+
     table_less: {
       # Should return the maximum width that can be used to render tables
       # through less. Columns will be elided if the width is too small
       #
       # -1 means 'no limit'
       get_max_width: {|| -1}
-
-      # Override your env specifically for the case of 'table-less',
-      # notably Nu formatting settings.
-      # 
-      # You can use this to display some datatypes in more detail in the
-      # pager context
-      override_env: {||
-        ## These make sense if --header 1 is used in 'less_args':
-        # $env.config.table.header_on_separator = true
-        # $env.config.table.footer_inheritance = false
-
-        # $env.config.table.padding = {left: 0, right: 0}
-        $env.config.datetime_format.table = "%c"
-        $env.config.filesize.precision = 3
-      }
     }
 
     grid_less: {
       # When showing filenames, should we colorize them with ls colors
       use_ls_colors: true
       # When showing unique values, which color to show the counts in
-      count_color: cyan
+      count_color: grey
+      # The color of the bar separators
+      separator_color: grey
     }
 
     # A record of closures that render on stdout a value that is piped in
@@ -133,7 +135,8 @@ export def in [
       error make {msg: $"'($viewer)' unknown. It is not present in $env.repage.viewers"}
     }
     $cls => {
-      do $cls
+      do --env $env.repage.override_env
+      $in | do $cls
     }
   }
 }
@@ -169,7 +172,7 @@ export def main [
 #
 # To be used in your prompt
 export def render-ans-summary [
-  --color (-c) = "yellow" # Which color to render the type in
+  --color (-c) = "yellow_dimmed" # Which color to render the type in
   --truncate # Truncate the summary depending on terminal width
   --suffix (-s) = "" # If an output is produced, add this suffix to it
 ] {
