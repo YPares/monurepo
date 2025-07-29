@@ -67,7 +67,7 @@ export def rescope [
   let scope_key = $"(if ($prefix != null) {$'($prefix)-'} else {''})(random chars)"
   $env.rescope.scopes = $env.rescope?.scopes? | default [] | prepend $scope_key
 
-  let res = try {
+  let res = $in | try {
     log debug $"Scope ($scope_key): start"
     $in | do $fn $scope_key | {ok: $in}
   } catch {|exc|
@@ -123,6 +123,7 @@ export def mkscoped [
         log debug $"Scope ($scope_key): ($tag)($res_id) finalized"
       }
     } | job send $env.rescope.closure-store-job-id
+    $res
   } else {
     error make {msg: $"No scope with key '($scope_key)' exists"}
   }
