@@ -7,6 +7,7 @@
 
 use std/dirs
 export use path.nu
+use ../rescope *
 
 export-env {
   use std/dirs
@@ -249,52 +250,58 @@ def then [cls: closure, --else (-e): any] {
 }
 
 export def select-paths [multi: bool, --prompt: string] {
-  each {|p|
-    let type = $p | path expand | path type
-    let clr = if $type == "dir" {"blue"} else {"default"}
-    [ $"(ansi $clr)($p)(ansi reset)(char fs)"
-      $type
-    ] | str join " "
-  } |
-  str join "\n" | (
-    fzf --reverse --style default --info inline-right
-        ...($env.prowser.finder.max_height? | then {[--height $in]} -e [])
-        ...($prompt | then {[--prompt $"($in)> "]} -e [])
-        --ansi --color "pointer:magenta,marker:green"
-        --tiebreak end
-        --delimiter (char fs) --with-nth 1 --accept-nth 1
-        --cycle --exit-0 --select-1
-        --keep-right
-        --with-shell 'nu -n -c'
-        --preview r###'
-          let file = {1}
-          let typ = {2}
-          $env.config.use_ansi_coloring = true
-          match $typ {
-            "dir" => {
-              print $'(ansi blue_italic)($file)(ansi reset):'
-              ls --all --short-names $file | table -w ($env.FZF_PREVIEW_COLUMNS | into int)
+  rescope {
+    let color_config_file = mkscoped file { mktemp --suffix .nuon }
+    $env.config.color_config | save -f $color_config_file
+
+    $in | each {|p|
+      let type = $p | path expand | path type
+      let clr = if $type == "dir" {$env.config.color_config.shape_filepath} else {"default"}
+      [ $"(ansi $clr)($p)(ansi reset)(char fs)"
+        $type
+      ] | str join " "
+    } |
+    str join "\n" | (
+      fzf --reverse --style default --info inline-right
+          ...($env.prowser.finder.max_height? | then {[--height $in]} -e [])
+          ...($prompt | then {[--prompt $"($in)> "]} -e [])
+          --ansi --color "pointer:magenta,marker:green"
+          --tiebreak end
+          --delimiter (char fs) --with-nth 1 --accept-nth 1
+          --cycle --exit-0 --select-1
+          --keep-right
+          --with-shell 'nu -n -c'
+          --preview $"
+            let file = {1}
+            let typ = {2}
+            $env.config.color_config = open ($color_config_file)
+            $env.config.use_ansi_coloring = true
+            match $typ {
+              "dir" => {
+                print $'(ansi $env.config.color_config.shape_filepath)\($file)(ansi reset):'
+                ls --all --short-names $file | table -w \($env.FZF_PREVIEW_COLUMNS | into int)
+              }
+              _ => {
+                bat --color always --terminal-width $env.FZF_PREVIEW_COLUMNS $file
+              }
             }
-            _ => {
-              bat --color always --terminal-width $env.FZF_PREVIEW_COLUMNS $file
-            }
-          }
-        '###
-        --preview-window "right,60%,noinfo,border-left"
-        --color "scrollbar:blue"
-        --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-r:cancel,alt-q:abort"
-        --bind "alt-h:first,alt-j:down,alt-k:up,alt-l:accept"
-        --bind "alt-left:first,alt-right:accept,alt-up:half-page-up,alt-down:half-page-down"
-        --bind "ctrl-alt-k:half-page-up,ctrl-alt-j:half-page-down"
-        --bind "alt-backspace:clear-query"
-        --bind "ctrl-space:jump"
-        --bind "ctrl-a:toggle-all"
-        --bind "ctrl-s:half-page-down,ctrl-z:half-page-up"
-        --bind "ctrl-d:preview-half-page-down,ctrl-e:preview-half-page-up"
-        --bind "ctrl-w:toggle-preview-wrap"
-        --bind "resize:execute(tput reset)"
-        ...(if $multi {[--multi]} else {[--bind "tab:accept"]})
-  ) | lines
+          "
+          --preview-window "right,60%,noinfo,border-left"
+          --color "scrollbar:blue"
+          --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-r:cancel,alt-q:abort"
+          --bind "alt-h:first,alt-j:down,alt-k:up,alt-l:accept"
+          --bind "alt-left:first,alt-right:accept,alt-up:half-page-up,alt-down:half-page-down"
+          --bind "ctrl-alt-k:half-page-up,ctrl-alt-j:half-page-down"
+          --bind "alt-backspace:clear-query"
+          --bind "ctrl-space:jump"
+          --bind "ctrl-a:toggle-all"
+          --bind "ctrl-s:half-page-down,ctrl-z:half-page-up"
+          --bind "ctrl-d:preview-half-page-down,ctrl-e:preview-half-page-up"
+          --bind "ctrl-w:toggle-preview-wrap"
+          --bind "resize:execute(tput reset)"
+          ...(if $multi {[--multi]} else {[--bind "tab:accept"]})
+    ) | lines
+  }
 }
 
 # Run an fzf-based file fuzzy finder on the paths listed by some closure
