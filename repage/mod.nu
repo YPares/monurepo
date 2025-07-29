@@ -149,11 +149,11 @@ def complete-ans-columns [] {
 export def main [
   --select (-s) # Open a dropdown list to select the viewer (ignore -v then)
   --viewer (-v): string@list-viewers = "less"
-                # Which viewer (from $env.repage.viewers) to use
+    # Which viewer (from $env.repage.viewers) to use
   --wrap (-w): oneof<closure, nothing> = null
-      # Process the recorded result (post column filtering) before showing it
-  ...columns: string@complete-ans-columns # The columns of the recorded result to select.
-                                 # Selects all the columns if none given
+    # Process the recorded result (post column filtering) before showing it
+  ...shown: cell-path@complete-ans-columns
+    # Which cell-paths of the recorded result to show. Shows everything if none given
 ] {
   let wrap = if $wrap != null {$wrap} else {{$in}}
   let viewer = if $select {
@@ -161,7 +161,7 @@ export def main [
   } else {$viewer}
   if $viewer != null and ($env.repage.__recorded? | describe) != nothing {
     $env.repage.__recorded |
-      if ($columns | is-empty) {$in} else {select ...$columns} |
+      if ($shown | is-empty) {$in} else {select ...$shown} |
       do $wrap |
       in -v $viewer
   }
