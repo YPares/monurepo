@@ -1,3 +1,5 @@
+use std log
+
 # Run a nushell closure performing a set of jj operations as atomically
 # as possible. Ie. if one operation fails, revert back to the state before
 # the closure started.
