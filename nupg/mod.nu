@@ -1,6 +1,6 @@
 export use run.nu [
   main
-  describe
+  desc
 ]
 export use build.nu [
   main

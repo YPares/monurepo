@@ -60,7 +60,10 @@ export def raw [
     tee {std log debug $"Running: ($in)"} | psql --csv | from csv
 }
 
-def __describe [
+# Get the columns and types returned by a query
+#
+# Will read the db connection string from $env.PSQL_DB_STRING
+export def desc [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
   --variables (-v): record = {} 
@@ -78,7 +81,9 @@ def __describe [
   
   let cols = $'($query) \gdesc' | raw --variables=$variables | rename column_name pg_type
   if ($cols | is-empty) {
-    error make -u {msg: "psql could not evaluate query result column types"}
+    error make -u {
+      msg: $"psql could not describe the result column types of\n($query)"
+    }
   } else {
     $cols
   }
@@ -111,7 +116,7 @@ export def main [
     wrap-with-stored --no-stored-queries=$no_stored_queries
 
   # We get the types returned by the query:
-  let cols = $query | __describe --variables=$variables --no-stored-queries
+  let cols = $query | desc --variables=$variables --no-stored-queries
 
   let conversions = $cols |
     join --left ($env.nupg.conversions.pg_to_nu | flatten pg_type) pg_type |
@@ -144,8 +149,3 @@ export def main [
     ]}
   $query | raw --variables=$variables ...$params | run-updates $nu_conversions
 }
-
-# Get the columns and types returned by a query
-#
-# Will read the db connection string from $env.PSQL_DB_STRING
-export alias describe = __describe
