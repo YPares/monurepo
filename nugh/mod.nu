@@ -20,7 +20,8 @@ export def --wrapped prs [
   --help (-h) # Show this help page
   ...args # Arguments to pass to `gh pr ls`
 ] {
-  ^gh pr ls ...$args --json "number,title,statusCheckRollup,reviewDecision,author,headRefName,headRefOid,baseRefName,url,isDraft" |
+  (^gh pr ls ...$args --json
+    "number,title,statusCheckRollup,reviewDecision,author,headRefName,headRefOid,baseRefName,url,isDraft") |
   from json | default [] |
   update author {get login} |
   update statusCheckRollup {
@@ -70,8 +71,14 @@ export def group-pr-commits-by-review [] {
   }
 }
 
-export def runs [--limit (-L) = 20] {
-  ^gh run list --json "headSha,status,conclusion" -L $limit | from json | default []
+# Get a table of the runs
+export def --wrapped runs [
+  --limit (-L) = 20
+  ...args # Arguments to pass to 'gh run list'
+] {
+  (^gh run list --json "url,displayTitle,workflowName,event,headSha,status,conclusion" -L $limit ...$args
+  ) | from json | default [] |
+    move --first displayTitle workflowName status conclusion
 }
 
 export def group-run-commits-by-result [--limit (-L) = 20] {
