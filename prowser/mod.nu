@@ -270,7 +270,7 @@ export def select-paths [multi: bool, --prompt: string] {
           --delimiter (char fs) --with-nth 1 --accept-nth 1
           --cycle --exit-0 --select-1
           --keep-right
-          --with-shell 'nu -n -c'
+          --with-shell 'nu -n --no-std-lib -c'
           --preview $"
             let file = {1}
             let typ = {2}
