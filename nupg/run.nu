@@ -57,7 +57,10 @@ export def raw [
     })
   ] |
     str join "\n" |
-    tee {std log debug $"Running: ($in)"} | psql --csv | from csv
+    tee {std log debug $"Running: ($in)"} |
+      psql --csv --pset=null=(char bel) |
+      from csv |
+      update cells {if ($in == (char bel)) {null} else {$in}}
 }
 
 # Get the columns and types returned by a query
