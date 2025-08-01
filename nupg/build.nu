@@ -2,7 +2,7 @@ use inspect.nu
 use run.nu to-quoted-json
 use store/internals.nu *
 
-use ../repage/viewers.nu typed-columns
+use repage/viewers.nu typed-columns
 
 const keywords_file = (
   path self | path dirname | path join keywords.txt

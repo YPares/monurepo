@@ -1,4 +1,4 @@
-use ../prowser
+use prowser
 
 # Finds the files modified in some revset that match some glob pattern
 #

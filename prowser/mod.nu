@@ -7,7 +7,7 @@
 
 use std/dirs
 export use path.nu
-use ../rescope *
+use rescope *
 
 export-env {
   use std/dirs
@@ -250,13 +250,14 @@ def then [cls: closure, --else (-e): any] {
 }
 
 export def select-paths [multi: bool, --prompt: string] {
-  rescope {
+  let dir_clr = $env.config.color_config?.shape_filepath? | default "cyan"
+  $in | rescope {
     let color_config_file = mkscoped file { mktemp --suffix .nuon }
-    $env.config.color_config | save -f $color_config_file
+    $env.config.color_config? | default {} | save -f $color_config_file
 
     $in | each {|p|
       let type = $p | path expand | path type
-      let clr = if $type == "dir" {$env.config.color_config.shape_filepath} else {"default"}
+      let clr = if $type == "dir" {$dir_clr} else {"default"}
       [ $"(ansi $clr)($p)(ansi reset)(char fs)"
         $type
       ] | str join " "
@@ -278,7 +279,7 @@ export def select-paths [multi: bool, --prompt: string] {
             $env.config.use_ansi_coloring = true
             match $typ {
               "dir" => {
-                print $'(ansi $env.config.color_config.shape_filepath)\($file)(ansi reset):'
+                print $'(ansi ($dir_clr))\($file)(ansi reset):'
                 ls --all --short-names $file | table -w \($env.FZF_PREVIEW_COLUMNS | into int)
               }
               _ => {

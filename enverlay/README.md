@@ -11,7 +11,7 @@ Minimal setup to add to your `config.nu`:
 ```nushell
 ## In your ~/.config/nushell/config.nu
 
-use path/to/enverlay
+use enverlay
 
 $env.PROMPT_COMMAND_RIGHT = {||
   $"...(enverlay render)..."

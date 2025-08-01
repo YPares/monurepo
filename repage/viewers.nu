@@ -6,7 +6,8 @@ export def typed-columns []: any -> table<name: string, type: string> {
 }
 
 def pretty-colname [name] {
-  $"(ansi $env.config.color_config.header)($name)(ansi reset)"
+  let clr = $env.config.color_config?.header? | default "green"
+  $"(ansi $clr)($name)(ansi reset)"
 }
 
 def pretty-typed-column [] {

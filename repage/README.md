@@ -8,7 +8,7 @@ Minimal setup to add to your `config.nu`:
 ```nushell
 ## In your ~/.config/nushell/config.nu
 
-use path/to/repage
+use repage
 
 # So that we record the result of every command run in the shell
 $env.config.hooks.display_output = {|| repage record-and-render}

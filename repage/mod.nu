@@ -1,3 +1,4 @@
+use std formats "from jsonl"
 use viewers.nu
 
 export-env {

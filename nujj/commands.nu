@@ -1,4 +1,5 @@
 use std log
+use std formats "from jsonl"
 use atomic.nu
 
 module complete {

@@ -1,4 +1,4 @@
-use ../nujj
+use nujj
 use deltau.nu
 use parsing.nu
 

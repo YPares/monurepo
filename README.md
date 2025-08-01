@@ -17,3 +17,12 @@ A collection of Nushell libraries and tools:
 The reason to collect them all here is because Nushell currently does not have a default package manager,
 and some of these libraries depend on one another.
 
+## Using it
+
+Add to your `config.nu`:
+
+```nushell
+const NU_LIB_DIRS = [..., "path/to/monurepo"]
+```
+
+You can now `use` any of the libraries here.

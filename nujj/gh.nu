@@ -1,4 +1,4 @@
-use ../nugh
+use nugh
 
 export def mk-revsets [--num-runs = 20] {
   let list = nugh group-run-commits-by-result -L $num_runs |
