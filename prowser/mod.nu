@@ -98,6 +98,19 @@ export def --env add [
 }
 
 # Drop the current dir
+export def --env swap [--left (-l)] {
+  let c = $env.PWD
+  drop
+  if $left {
+    if $env.DIRS_POSITION < (($env.DIRS_LIST | length)) {left}
+    add --left $c
+    left
+  } else {
+    add $c
+    right
+  }
+}
+
 export def --env drop [
   --others (-o) # Drop every dir EXCEPT the current one
 ] {
@@ -450,6 +463,8 @@ export def default-keybindings [
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
     [alt         [char_j down]  (cmd $'($prefix)down')]
+    [alt         char_o         (cmd $'($prefix)swap')]
+    [alt         char_y         (cmd $'($prefix)swap --left')]
     [alt         char_s         (cmd $'($prefix)accept')]
     [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right --reset')]
     [shift_alt   char_c         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
