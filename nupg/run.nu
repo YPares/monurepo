@@ -26,16 +26,19 @@ export def to-quoted-json []: any -> string {
 }
 
 export def --wrapped psql [...args] {
-  (
+  # do -c ensures an exception will be thrown if ^psql ends with
+  # a nonzero exit code, and the whole downstream pipeline be aborted
+  do -c {(
     ^psql
+      --set=ON_ERROR_STOP=true
       ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
       $env.PSQL_DB_STRING
       ...$args
-  )
+  )}
 }
 
 # Run an SQL statement without performing any output conversion
-export def raw [
+def raw [
   --variables (-v): record = {}
     # Values to use to replace the :foo, :"foo", :'foo' variables in the query
   ...params: any
@@ -63,9 +66,9 @@ export def raw [
       update cells {if ($in == (char bel)) {null} else {$in}}
 }
 
-# Get the columns and types returned by a query
-#
-# Will read the db connection string from $env.PSQL_DB_STRING
+# Get the columns and types returned by a statement.
+# Gets the db connection string from $env.PSQL_DB_STRING.
+# Returns an empty list if the statement does not return any value
 export def desc [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
@@ -77,22 +80,16 @@ export def desc [
   string -> table<column_name: string, pg_type: string>
   nothing -> table<column_name: string, pg_type: string>
 ] {
-  let query = if $file != null {
+  if $file != null {
     open --raw $file
   } else {$in} |
-    wrap-with-stored --no-stored-queries=$no_stored_queries
-  
-  let cols = $'($query) \gdesc' | raw --variables=$variables | rename column_name pg_type
-  if ($cols | is-empty) {
-    error make -u {
-      msg: $"psql could not describe the result column types of\n($query)"
-    }
-  } else {
-    $cols
-  }
+    wrap-with-stored --no-stored-queries=$no_stored_queries |
+    $'($in) \gdesc' |
+    raw --variables=$variables |
+    rename column_name pg_type
 }
 
-# Pipe in a PostgreSQL query to get its result as a nushell table,
+# Pipe in a PostgreSQL statement to get its result as a nushell table,
 # converting the columns to Nushell types along the way, using the conversion
 # functions defined in $env.nupg.conversions.pg_to_nu
 #
@@ -109,7 +106,8 @@ export def main [
   string -> list<any>
   nothing -> list<any>
 ] {
-  let query = if $file != null {
+  # We add stored queries (as 'WITH xxx as (...)' declarations) to the statement:
+  let statement = if $file != null {
     open --raw $file
   } else if ($in | describe) == "nothing" {
     error make {msg: "nupg: Either feed a query as input or use --file"}      
@@ -118,29 +116,14 @@ export def main [
   } |
     wrap-with-stored --no-stored-queries=$no_stored_queries
 
-  # We get the types returned by the query:
-  let cols = $query | desc --variables=$variables --no-stored-queries
+  # We get the columns and types returned by the statement:
+  let cols = $statement | desc --variables=$variables --no-stored-queries
 
+  # We find the set of conversions that should be applied:
   let conversions = $cols |
     join --left ($env.nupg.conversions.pg_to_nu | flatten pg_type) pg_type |
     select column_name pg_convert? nu_convert?
-
-  # We apply the pg_convert in-query conversions:
   let pg_conversions = $conversions | where pg_convert? != null
-  let query = if ($pg_conversions | is-empty) {
-    $query
-  } else {
-    let passthrough_cols = $conversions |
-      where pg_convert? == null |
-      get column_name |
-      each {$'"($in)"'}
-    let converted_cols = $pg_conversions | each {|c|
-      $'($c.column_name | do $c.pg_convert) as ($c.column_name)'
-    }
-    $"select ($passthrough_cols ++ $converted_cols | str join ',') from \(($query))"
-  }
-
-  # We run the query and apply the nu_convert post-query conversions:
   let nu_conversions = $conversions |
     where nu_convert? != null |
     each {|c| [
@@ -150,5 +133,19 @@ export def main [
         try {$x | do $c.nu_convert} catch {$x}
       }
     ]}
-  $query | raw --variables=$variables ...$params | run-updates $nu_conversions
+
+  # We compose the final query so it contains the pg_conversions, run it, and apply nu_conversions:
+  if ($pg_conversions | is-empty) {
+    $statement
+  } else {
+    let passthrough_cols = $conversions |
+      where pg_convert? == null |
+      get column_name |
+      each {$'"($in)"'}
+    let converted_cols = $pg_conversions | each {|c|
+      $'($c.column_name | do $c.pg_convert) as ($c.column_name)'
+    }
+    $"select ($passthrough_cols ++ $converted_cols | str join ',') from \(($statement))"
+  } |
+    raw --variables=$variables ...$params | run-updates $nu_conversions
 }

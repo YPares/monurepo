@@ -95,11 +95,16 @@ export def default-nu-to-pg-conversions [
   ]
 }
 
-# Runs 'nupg build ... | nupg run'
+# Builds a statement out of the command-line arguments, and run it
+#
+# See docs for 'nupg build' and 'nupg run'
 export def main [
   ...tokens: any@complete-build
   --variables (-v): record = {}
+    # Values to use to replace the :foo, :"foo", :'foo' variables in the query
   --parameters (-p): list<any> = []
+    # Values to use to replace the $1, $2, $3, etc. placeholders
+    # in the query.
 ]: nothing -> list<any> {
   build ...$tokens | run --variables=$variables ...$parameters
 }
