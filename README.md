@@ -9,6 +9,7 @@ A collection of Nushell libraries and tools:
   shows your current env and Nushell overlays
 - [repage](./repage): record the result of the last command, show info about it
   in the prompt and re-render it in detail in a pager
+- [deepformat](./deepformat): render nested Nushell tables and records as HTML
 - [nupg](./nupg): nushell interface for PostgreSQL, with automatic conversions
   to Nushell types and query autocompletion
 - [nugh](./nugh): nushell wrappers for the
