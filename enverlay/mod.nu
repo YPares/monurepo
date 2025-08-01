@@ -30,7 +30,7 @@ def __export [dir: path = "."] {
        ($proc.stderr | is-empty)
     or ($proc.stderr | lines | last | ansi strip) =~ "^direnv: (export|unloading)"
   ) {
-    $proc.stdout | from json | default {} | reject -i ...$env.enverlay.excluded_direnv_vars
+    $proc.stdout | from json | default {} | reject -o ...$env.enverlay.excluded_direnv_vars
   } else {
     error make {msg: $"direnv errored:\n($proc.stderr)"}
   }
@@ -79,7 +79,7 @@ export def render [] {
 
   let envs = [
     ...(
-      match ($env | get -i name) { # Nix shell/develop set the $name (lowercase) env var
+      match ($env | get -o name) { # Nix shell/develop set the $name (lowercase) env var
         null => []
         $name => [$"(ansi blue)❄ ($name)(ansi reset)"]
       }

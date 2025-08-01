@@ -25,7 +25,7 @@ export def sync-info [
   let gh_revsets = mk-revsets --num-runs $num_runs
   open $jj_repo_config_path |
     upsert revset-aliases {
-      default {} | reject -i ...$nugh.GROUPS | merge $gh_revsets 
+      default {} | reject -o ...$nugh.GROUPS | merge $gh_revsets 
     } |
     save -f $jj_repo_config_path
 }

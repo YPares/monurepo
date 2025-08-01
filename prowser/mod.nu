@@ -207,7 +207,7 @@ export def --env snap [
     accept
     let verb = if $name == $env.prowser.__cur_snap_name {"Reloaded"} else {"Loaded"}
     $env.prowser.__prev_dirs_state = snap current-state
-    match (snap saved | get -i $name) {
+    match (snap saved | get -o $name) {
       null => {
         error make -u {msg: $"Snapshot '($name)' unknown"}
       }

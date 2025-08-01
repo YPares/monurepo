@@ -282,9 +282,9 @@ def "main on-load-finished" [state_file: path, fzf_pos?: int] {
   let fzf_pos = if ($fzf_pos == null) {
     match $state.current_view? {
       "oplog" => $state.pos_in_oplog
-      "revlog" => ($state.pos_in_revlog | get -i $state.selected_operation_id | default 0)
-      "evolog" => ($state.pos_in_evolog | get -i $state.selected_change_id | default 0)
-      "files" => ($state.pos_in_files | get -i (get-file-index $state) | default 0)
+      "revlog" => ($state.pos_in_revlog | get -o $state.selected_operation_id | default 0)
+      "evolog" => ($state.pos_in_evolog | get -o $state.selected_change_id | default 0)
+      "files" => ($state.pos_in_files | get -o (get-file-index $state) | default 0)
       _ => 0
     }
   } else {
@@ -309,7 +309,7 @@ def "main on-load-finished" [state_file: path, fzf_pos?: int] {
 
   let before = $breadcrumbs | take until {$in.view == $state.current_view?}
   let num_before = $before | length
-  let current = $breadcrumbs | get -i $num_before
+  let current = $breadcrumbs | get -o $num_before
   let after = $breadcrumbs | slice ($num_before + 1)..
 
   let header = [

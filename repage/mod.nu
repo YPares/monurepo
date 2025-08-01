@@ -132,7 +132,7 @@ def list-viewers [] {
 export def in [
   --viewer (-v): string@list-viewers = "less"
 ] {
-  match ($env.repage.viewers | get -i $viewer) {
+  match ($env.repage.viewers | get -o $viewer) {
     null => {
       error make {msg: $"'($viewer)' unknown. It is not present in $env.repage.viewers"}
     }

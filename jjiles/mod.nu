@@ -32,9 +32,9 @@ def to-fzf-bindings []: record -> list<string> {
 
 def to-fzf-colors [mappings: record, theme: string]: record -> string {
   transpose elem color | each {|row|
-    let map = $mappings | get -i $row.color 
+    let map = $mappings | get -o $row.color 
     let color = if ($map != null) {
-      $map | get -i $theme | default $map.default?
+      $map | get -o $theme | default $map.default?
     } else {
       $row.color | str join ":"
     }
@@ -235,7 +235,7 @@ export def get-config [
     ^jj config list jjiles | from toml
   } else {$jj_cfg}
   $default_config | get jjiles | merge deep (
-    $jj_cfg | get -i jjiles | default {}
+    $jj_cfg | get -o jjiles | default {}
   )
 }
 
