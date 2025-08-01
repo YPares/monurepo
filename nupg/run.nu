@@ -14,13 +14,14 @@ def run-updates [
   }
 }
 
-# Convert $in into a string that can be inlined into postgres queries,
+# Convert $in into a string that can be inlined AS A VALUE into postgres queries,
 # via its JSON representation.
 # The produced string is usable either as JSONB or as some PostgreSQL
 # atomic type
-export def to-quoted-json []: any -> string {
+export def to-quoted-value []: any -> string {
   to json --raw --serialize |
   str replace -ra "^\"|\"$" "" |
+  str replace -a '\"' '"' |
   str replace -a "'" "''" |
   $"'($in)'"
 }
@@ -49,13 +50,13 @@ export def raw [
     ...($variables |
       transpose key val |
       each {|var|
-        $"\\set ($var.key) ($var.val | to-quoted-json)"
+        $"\\set ($var.key) ($var.val | to-quoted-value)"
       })
     $in
     ...(match $params {
       [] => []
       _ => [(
-        " \\bind " + ($params | each {to-quoted-json} | str join ' ')
+        " \\bind " + ($params | each {to-quoted-value} | str join ' ')
       )]
     })
   ] |

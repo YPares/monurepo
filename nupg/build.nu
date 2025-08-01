@@ -1,5 +1,5 @@
 use inspect.nu
-use run.nu to-quoted-json
+use run.nu to-quoted-value
 use store/internals.nu *
 
 use repage/viewers.nu typed-columns
@@ -7,24 +7,6 @@ use repage/viewers.nu typed-columns
 const keywords_file = (
   path self | path dirname | path join keywords.txt
 )
-
-export def join-aliases [
-  --sep (-s) = ","
-  ...args: oneof<string,record>
-]: nothing -> string {
-  ($args | each {|arg|
-    match ($arg | describe) {
-      "string" => {
-        [$arg]
-      }
-      _ => {
-        $arg | transpose key val | each {|e|
-          $"($e.val) as ($e.key)"
-        }
-      }
-    }
-  }) | flatten | str join $sep
-}
 
 export def bracket [
   --left (-l): string = "("
@@ -43,24 +25,6 @@ export def bracket [
 
 def __open [file: path] {
   bracket (open --raw $file)
-}
-
-export def select_ [
-  ...cols: oneof<string,record>
-] {
-  $"SELECT (join-aliases ...$cols)"
-}
-
-export def from_ [
-  ...tables: oneof<string,record>
-] {
-  $"FROM (join-aliases ...$tables)"
-}
-
-export def where_ [
-  ...elems: string
-] {
-  $"WHERE ($elems | str join ' ')"
 }
 
 export def complete-build [cmdline pos] {
@@ -168,10 +132,42 @@ export def recordset [
       $":'($v)'"
     }
     _ => {
-      $table | to-quoted-json
+      $table | to-quoted-value
     }
   }
   $"jsonb_to_recordset\(($contents)) as ($name)\(($pg_cols))"
+}
+
+
+
+export def join-aliases [
+  --sep (-s) = ","
+  ...args: oneof<string,record>
+]: nothing -> string {
+  ($args | each {|arg|
+    match ($arg | describe) {
+      "string" => {
+        [$arg]
+      }
+      _ => {
+        $arg | transpose key val | each {|e|
+          $"($e.val) as ($e.key)"
+        }
+      }
+    }
+  }) | flatten | str join $sep
+}
+
+export def select_ [
+  ...cols: oneof<string,record>
+] {
+  $"SELECT (join-aliases ...$cols)"
+}
+
+export def from_ [
+  ...tables: oneof<string,record>
+] {
+  $"FROM (join-aliases ...$tables)"
 }
 
 export alias open = __open
