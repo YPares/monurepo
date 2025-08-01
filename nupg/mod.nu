@@ -55,7 +55,7 @@ export-env {
 
     # Whether to read the user's config files for the tools used internally
     user_configs: {
-      psql: true  # ~/.psqlrc
+      psql: false  # ~/.psqlrc
       bat:  false # ~/.config/bat/config
     }
 
