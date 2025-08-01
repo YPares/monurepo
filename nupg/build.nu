@@ -32,7 +32,8 @@ export def bracket [
   --sep (-s): string = " "
   ...contents: any
 ]: [list<any> -> string, nothing -> string] {
-  let contents = ($in | default []) ++ $contents
+  let contents = ($in | default []) ++ $contents |
+    each {if $in == null {"null"} else {$in}}
   if ($contents | is-empty) {
     $contents
   } else {

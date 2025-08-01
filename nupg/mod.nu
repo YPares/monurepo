@@ -44,7 +44,14 @@ export-env {
       # Any nushell datatype that is not present in this conversions table
       # will be mapped to 'JSONB'
       nu_to_pg: (default-nu-to-pg-conversions)
-    } 
+    }
+    
+    # We need a unique string to give psql to identify NULL return values
+    # (to distinguish NULLs from empty strings)
+    # 
+    # In the very unlikely event that the default one set here conflicts
+    # with the data you have in base, you can override it 
+    null_placeholder: $"(char bel)NULL(char bel)"
 
     # Whether to read the user's config files for the tools used internally
     user_configs: {

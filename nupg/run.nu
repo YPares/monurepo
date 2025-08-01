@@ -29,10 +29,10 @@ export def --wrapped psql [...args] {
   # do -c ensures an exception will be thrown if ^psql ends with
   # a nonzero exit code, and the whole downstream pipeline be aborted
   do -c {(
-    ^psql
+    ^psql $env.PSQL_DB_STRING
       --set=ON_ERROR_STOP=true
+      --pset=null=($env.nupg.null_placeholder) 
       ...(if $env.nupg.user_configs.psql {[]} else {[--no-psqlrc]})
-      $env.PSQL_DB_STRING
       ...$args
   )}
 }
@@ -61,9 +61,9 @@ def raw [
   ] |
     str join "\n" |
     tee {std log debug $"Running: ($in)"} |
-      psql --csv --pset=null=(char bel) |
+      psql --csv |
       from csv |
-      update cells {if ($in == (char bel)) {null} else {$in}}
+      update cells {if ($in == $env.nupg.null_placeholder) {null} else {$in}}
 }
 
 # Get the columns and types returned by a statement.
