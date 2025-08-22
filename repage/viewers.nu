@@ -50,7 +50,13 @@ export def grid-less [
       let uniq_bit = if $unique {'unique '} else {""}
       $"(ansi attr_dimmed)-- ($uniq_bit)entries in (ansi reset)(pretty-colname $col)(ansi attr_dimmed):(ansi reset)\n"
     }
-    $to_display | get $col |
+    $to_display |
+      get $col |
+      each {
+        if $in == null {
+          $"(ansi $env.config.color_config.shape_nothing)null(ansi reset)"
+        } else {$in}
+      } |
       if $unique {
         uniq --count | each {
           let count = if $in.count > 1 {
