@@ -95,6 +95,7 @@ def get-needed-config-from-jj [
     templates: {
       op_log: $jj_config.templates.op_log
       log: $jj_config.templates.log
+      evo_log: $jj_config.templates.evolog
     }
     colors: {
       operation: ($jj_config.colors."operation id" | do $process)
@@ -108,7 +109,7 @@ def get-templates [jj_cfg jjiles_cfg] {
   {
     op_log: ($jjiles_cfg.templates.op_log? | default $jj_cfg.templates.op_log)
     rev_log: ($jjiles_cfg.templates.rev_log? | default $jj_cfg.templates.log)
-    evo_log: ($jjiles_cfg.templates.evo_log? | default $jj_cfg.templates.log)
+    evo_log: ($jjiles_cfg.templates.evo_log? | default $jj_cfg.templates.evo_log)
     rev_preview: $jjiles_cfg.templates.rev_preview?
     evo_preview: $jjiles_cfg.templates.evo_preview
     file_preview: $jjiles_cfg.templates.file_preview?
@@ -330,7 +331,7 @@ export def --wrapped main [
     update rev_log {if ($template == null) {$in} else {$template}} |
     update op_log {wrap-template "id.short()" "''" $in} |
     update rev_log {wrap-template "change_id.shortest(8)" "commit_id.shortest(8)" $in} |
-    update evo_log {wrap-template "change_id.shortest(8)" "commit_id.shortest(8)" $in}
+    update evo_log {wrap-template "commit.change_id().shortest(8)" "commit.commit_id().shortest(8)" $in}
 
   let at_operation = $at_operation | default $at_op
   let do_watch_jj_repo = $at_operation == null

@@ -77,9 +77,9 @@ preview = "line"
 #rev_log = "builtin_log_compact"
 
 ## The JJ template to be used by the EvoLog view, and applied for each commit listed.
-## If not set, will default to the 'templates.log' of your jj config, to stick to
+## If not set, will default to the 'templates.evolog' of your jj config, to stick to
 ## the behaviour of 'jj evolog':
-#evo_log = "builtin_log_compact"
+#evo_log = "builtin_evolog_compact"
 
 ## The JJ template to be used as a header in the side panel when previewing a revision
 ## (from the RevLog view).
@@ -93,7 +93,7 @@ rev_preview = '''
 ## The JJ template to be used as a header in the side panel when previewing a commit
 ## (from the EvoLog view):
 evo_preview = '''
-  builtin_log_detailed ++ diff.summary()
+  builtin_evolog_compact ++ commit.diff().summary()
 '''
 
 ## The JJ template to be used as a header in the side panel when previewing a specific
