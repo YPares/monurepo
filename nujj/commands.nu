@@ -193,9 +193,20 @@ export def --wrapped bookmarks [
     update committer.timestamp {into datetime}
 }
 
-# Move a bookmark to the next commit
+# Move given bookmarks to their child revision. Will fail if some revision has more
+# than one child
+#
+# If no bookmark is given, ALL the bookmarks in the default log revset are advanced
 export def advance [
-  bookmark: string@"complete local-bookmarks"
+  ...bookmarks: string@"complete local-bookmarks"
 ] {
-  ^jj bookmark move $bookmark --to $"($bookmark)+"
+  let bookmarks = match $bookmarks {
+    [] => {complete local-bookmarks | get value}
+    _ => $bookmarks
+  }
+  atomic -n advance {
+    for b in $bookmarks {
+      ^jj bookmark move $b --to $"($b)+"
+    }
+  }
 }
