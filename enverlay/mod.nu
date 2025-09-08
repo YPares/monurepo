@@ -95,9 +95,21 @@ export def render [] {
     $"(ansi magenta)📂auto\(($env.enverlay.autoload_direnv))(ansi reset) "
   }
   let envs_bit = $envs | each {[$in ' ']} | flatten | str join ""
-  let overlays = overlay list | reverse
   let num_shown_overlays = $width / 35 | into int
-  let overlays_bit = $overlays | take $num_shown_overlays |
+  let overlays = overlay list | match ($in | describe) {
+    # Pre-Nu 0.107: 'active' column doesn't exist:
+    "list<string>" => {$in | wrap name | insert active true}
+    _ => $in
+  } | reverse
+  let overlays_bit = $overlays |
+    take $num_shown_overlays |
+    each {|o|
+      if $o.active {
+        $o.name
+      } else {
+        $"(ansi grey)(ansi attr_strike)($o.name)(ansi reset)"
+      }
+    } |
     str join $"(ansi yellow)|(ansi reset)" | if ($overlays | length) > $num_shown_overlays {
       $"($in)(ansi yellow)|(ansi reset)…"
     } else {$in}
