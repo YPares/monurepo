@@ -17,7 +17,8 @@ export def theme-flags [] {
 
 # Get the layout flags for delta
 export def layout-flags [side_by_side_threshold: int] {
-  let width = $env.FZF_PREVIEW_COLUMNS? |
+  let width = $env.DELTA_WIDTH? |
+    default $env.FZF_PREVIEW_COLUMNS? |
     default $env.FZF_COLUMNS? |
     default (tput cols) |
     into int
