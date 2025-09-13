@@ -19,6 +19,7 @@ nwLib.makeNuLibrary {
     "${jujutsu}/bin"
     "${delta}/bin"
     "${fzf}/bin"
+    "${gawk}/bin"
   ];
   dependencies = with flake.packages.${system}; [
     nujj

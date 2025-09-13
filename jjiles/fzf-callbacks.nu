@@ -8,8 +8,7 @@ def main [] {}
 # Replace the (char gs) inserted at the end of the template
 # by a NULL that fzf will use as a multi-line record separator
 def replace-template-ending [] {
-  str replace -ra $"\\s*(char gs)\\s*" (char gs) |
-  tr (char gs) \0
+  awk -v RS=(char gs) -v ORS='\0' '{gsub(/^[ \t\n]+|[ \t\n]+$/, ""); if (NR > 1) print}'
 }
 
 def --wrapped call-jj [--width (-w): int, ...args] {
