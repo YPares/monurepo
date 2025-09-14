@@ -230,13 +230,49 @@ datatui terminate
 
 ## Plugin Implementation Details
 
+**Refer to the most recent docs of the crates to use, either via https://docs.rs or by using the context7 MCP tools**
+
 ### Simple Plugin Structure (using nu-plugin crate)
 ```rust
-use nu_plugin::{serve_plugin, Plugin, SimplePluginCommand, MsgPackSerializer};
+use nu_plugin::{serve_plugin, Plugin, PluginCommand, SimplePluginCommand, MsgPackSerializer};
 use nu_plugin::{EngineInterface, EvaluatedCall};
-use nu_protocol::{LabeledError, Signature, Value, Type};
+use nu_protocol::{LabeledError, Signature, Value, Type, Span, PipelineData};
+use ratatui::{backend::CrosstermBackend, Terminal, Frame};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind, MouseEvent};
+use std::io::{self, Stdout};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
 
-struct DatatUI;
+struct Datatui {
+    widgets: HashMap<WidgetId, Box<dyn ratatui::widgets::Widget>>,
+    terminal: Option<Terminal<CrosstermBackend<Stdout>>>,
+}
+
+type WidgetId = u64;
+
+// Custom value for widget references
+#[derive(Debug, Clone)]
+pub struct WidgetRef {
+    pub id: WidgetId,
+}
+
+impl nu_protocol::CustomValue for WidgetRef {
+    fn clone_value(&self, span: Span) -> Value {
+        Value::custom(Box::new(self.clone()), span)
+    }
+    
+    fn type_name(&self) -> String {
+        "widget_ref".into()
+    }
+    
+    fn to_base_value(&self, span: Span) -> Result<Value, nu_protocol::ShellError> {
+        Ok(Value::string(format!("WidgetRef({})", self.id), span))
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
 struct InitCommand;
 struct EventsCommand;
 struct RenderCommand;
@@ -244,7 +280,7 @@ struct TerminateCommand;
 struct ListCommand;
 struct TextCommand;
 
-impl Plugin for DatatUI {
+impl Plugin for Datatui {
     fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").into()
     }
@@ -264,151 +300,231 @@ impl Plugin for DatatUI {
 
 // Example command implementations
 impl SimplePluginCommand for InitCommand {
-    type Plugin = DatatUI;
+    type Plugin = Datatui;
     
     fn name(&self) -> &str { "datatui init" }
     fn description(&self) -> &str { "Initialize terminal for TUI mode" }
     
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface, 
+    fn run(&self, plugin: &Datatui, engine: &EngineInterface, 
            call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
         // Initialize terminal, enter raw mode, setup crossterm
-        setup_terminal()?;
-        Ok(Value::Nothing { span: call.head })
+        let backend = CrosstermBackend::new(io::stdout());
+        let terminal = Terminal::new(backend).map_err(|e| {
+            LabeledError::new(format!("Failed to initialize terminal: {}", e))
+        })?;
+        
+        // Enable raw mode and setup
+        crossterm::terminal::enable_raw_mode().map_err(|e| {
+            LabeledError::new(format!("Failed to enable raw mode: {}", e))
+        })?;
+        
+        Ok(Value::nothing(call.head))
     }
 }
 
 impl SimplePluginCommand for EventsCommand {
-    type Plugin = DatatUI;
+    type Plugin = Datatui;
     
     fn name(&self) -> &str { "datatui events" }
     fn description(&self) -> &str { "Get terminal events (blocking)" }
     
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface,
+    fn run(&self, plugin: &Datatui, engine: &EngineInterface,
            call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
         // Call crossterm::event::read(), convert to Nu values
-        let events = read_crossterm_events()?;
-        Ok(events_to_nu_value(events, call.head))
+        let events = collect_crossterm_events().map_err(|e| {
+            LabeledError::new(format!("Failed to read events: {}", e))
+        })?;
+        Ok(events_to_nu_values(events, call.head))
     }
 }
 
 impl SimplePluginCommand for ListCommand {
-    type Plugin = DatatUI;
+    type Plugin = Datatui;
     
     fn name(&self) -> &str { "datatui list" }
     fn description(&self) -> &str { "Create a list widget" }
     fn signature(&self) -> Signature {
         Signature::build("datatui list")
-            .named("items", SyntaxShape::List(Box::new(SyntaxShape::Any)), "List items", None)
-            .named("selected", SyntaxShape::Int, "Selected index", None)
+            .named("items", nu_protocol::SyntaxShape::List(Box::new(nu_protocol::SyntaxShape::Any)), "List items", None)
+            .named("selected", nu_protocol::SyntaxShape::Int, "Selected index", None)
             .switch("scrollable", "Make list scrollable", None)
     }
     
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface,
+    fn run(&self, plugin: &Datatui, engine: &EngineInterface,
            call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
         // Create widget, store in plugin, return widget ID
-        let widget_id = create_list_widget(call)?;
-        Ok(Value::Custom { 
-            val: Box::new(WidgetRef { id: widget_id }),
-            span: call.head 
-        })
+        let widget_id = self.create_list_widget(plugin, call).map_err(|e| {
+            LabeledError::new(format!("Failed to create list widget: {}", e))
+        })?;
+        Ok(Value::custom(Box::new(WidgetRef { id: widget_id }), call.head))
     }
 }
 
 fn main() {
-    serve_plugin(&DatatUI, MsgPackSerializer);
+    serve_plugin(&Datatui::default(), MsgPackSerializer);
 }
 
-// Simple command implementations for user-controlled architecture
-impl SimplePluginCommand for EventsCommand {
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface,
-           call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
-        let events = collect_crossterm_events()?;
-        Ok(events_to_nu_values(events, call.head))
+impl Default for Datatui {
+    fn default() -> Self {
+        Self {
+            widgets: HashMap::new(),
+            terminal: None,
+        }
     }
 }
 
 impl SimplePluginCommand for RenderCommand {
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface,
+    type Plugin = Datatui;
+    
+    fn name(&self) -> &str { "datatui render" }
+    fn description(&self) -> &str { "Render UI layout to terminal" }
+    
+    fn run(&self, plugin: &Datatui, engine: &EngineInterface,
            call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
-        let layout = input.as_record()?;
-        render_layout_to_terminal(layout)?;
-        Ok(Value::Nothing { span: call.head })
+        let layout = input.as_record().map_err(|e| {
+            LabeledError::new(format!("Invalid layout format: {}", e))
+        })?;
+        self.render_layout_to_terminal(plugin, layout).map_err(|e| {
+            LabeledError::new(format!("Failed to render layout: {}", e))
+        })?;
+        Ok(Value::nothing(call.head))
     }
 }
 
+// Define event types for the plugin
+#[derive(Debug, Clone)]
+enum DatatuiEvent {
+    Key(KeyEvent),
+    Mouse(MouseEvent),
+    Resize(u16, u16),
+    Paste(String),
+}
+
 // Core event collection function
-fn collect_crossterm_events() -> Result<Vec<CrosstermEvent>, Error> {
+fn collect_crossterm_events() -> Result<Vec<DatatuiEvent>, crossterm::ErrorKind> {
     let mut events = Vec::new();
     
-    // Collect all available events (non-blocking after first)
-    if crossterm::event::poll(Duration::from_millis(0))? {
-        loop {
-            match crossterm::event::read()? {
+    // Block for first event, then collect all available events non-blocking
+    match event::read() {
+        Ok(first_event) => {
+            match first_event {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                    events.push(CrosstermEvent::Key(key_event));
+                    events.push(DatatuiEvent::Key(key_event));
                 }
                 Event::Mouse(mouse_event) => {
-                    events.push(CrosstermEvent::Mouse(mouse_event));
+                    events.push(DatatuiEvent::Mouse(mouse_event));
                 }
                 Event::Resize(w, h) => {
-                    events.push(CrosstermEvent::Resize(w, h));
+                    events.push(DatatuiEvent::Resize(w, h));
                 }
                 Event::Paste(text) => {
-                    events.push(CrosstermEvent::Paste(text));
+                    events.push(DatatuiEvent::Paste(text));
                 }
                 _ => {} // Ignore other events
             }
             
-            // Check if more events are available (non-blocking)
-            if !crossterm::event::poll(Duration::from_millis(0))? {
-                break;
+            // Collect any additional events available immediately
+            while event::poll(Duration::from_millis(0))? {
+                match event::read()? {
+                    Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                        events.push(DatatuiEvent::Key(key_event));
+                    }
+                    Event::Mouse(mouse_event) => {
+                        events.push(DatatuiEvent::Mouse(mouse_event));
+                    }
+                    Event::Resize(w, h) => {
+                        events.push(DatatuiEvent::Resize(w, h));
+                    }
+                    Event::Paste(text) => {
+                        events.push(DatatuiEvent::Paste(text));
+                    }
+                    _ => {} // Ignore other events
+                }
             }
         }
+        Err(e) => return Err(e),
     }
     
     Ok(events)
 }
 
-// Convert crossterm events to Nu values
-fn events_to_nu_values(events: Vec<CrosstermEvent>, span: Span) -> Value {
+// Convert crossterm events to Nu values using modern API
+fn events_to_nu_values(events: Vec<DatatuiEvent>, span: Span) -> Value {
     let nu_events = events.into_iter().map(|event| {
         match event {
-            CrosstermEvent::Key(key_event) => {
-                Value::Record {
-                    cols: vec!["type".into(), "key".into(), "modifiers".into(), "timestamp".into()],
-                    vals: vec![
-                        Value::String { val: "key".into(), span },
-                        Value::String { val: format!("{:?}", key_event.code), span },
-                        Value::List { vals: format_modifiers(key_event.modifiers, span), span },
-                        Value::Int { val: chrono::Utc::now().timestamp_millis(), span },
+            DatatuiEvent::Key(key_event) => {
+                Value::record(
+                    vec![
+                        ("type".into(), Value::string("key", span)),
+                        ("key".into(), Value::string(format!("{:?}", key_event.code), span)),
+                        ("modifiers".into(), Value::list(format_modifiers(key_event.modifiers, span), span)),
+                        ("timestamp".into(), Value::int(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64, span)),
                     ],
                     span,
-                }
+                )
             }
-            CrosstermEvent::Resize(w, h) => {
-                Value::Record {
-                    cols: vec!["type".into(), "width".into(), "height".into(), "timestamp".into()],
-                    vals: vec![
-                        Value::String { val: "resize".into(), span },
-                        Value::Int { val: w as i64, span },
-                        Value::Int { val: h as i64, span },
-                        Value::Int { val: chrono::Utc::now().timestamp_millis(), span },
+            DatatuiEvent::Mouse(mouse_event) => {
+                Value::record(
+                    vec![
+                        ("type".into(), Value::string("mouse", span)),
+                        ("x".into(), Value::int(mouse_event.column as i64, span)),
+                        ("y".into(), Value::int(mouse_event.row as i64, span)),
+                        ("button".into(), Value::string(format!("{:?}", mouse_event.kind), span)),
+                        ("timestamp".into(), Value::int(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64, span)),
                     ],
                     span,
-                }
+                )
             }
-            // ... other event types
+            DatatuiEvent::Resize(w, h) => {
+                Value::record(
+                    vec![
+                        ("type".into(), Value::string("resize", span)),
+                        ("width".into(), Value::int(w as i64, span)),
+                        ("height".into(), Value::int(h as i64, span)),
+                        ("timestamp".into(), Value::int(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64, span)),
+                    ],
+                    span,
+                )
+            }
+            DatatuiEvent::Paste(text) => {
+                Value::record(
+                    vec![
+                        ("type".into(), Value::string("paste", span)),
+                        ("text".into(), Value::string(text, span)),
+                        ("timestamp".into(), Value::int(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64, span)),
+                    ],
+                    span,
+                )
+            }
         }
     }).collect();
     
-    Value::List { vals: nu_events, span }
+    Value::list(nu_events, span)
+}
+
+// Helper function to format key modifiers
+fn format_modifiers(modifiers: crossterm::event::KeyModifiers, span: Span) -> Vec<Value> {
+    let mut result = Vec::new();
+    if modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+        result.push(Value::string("Ctrl", span));
+    }
+    if modifiers.contains(crossterm::event::KeyModifiers::ALT) {
+        result.push(Value::string("Alt", span));
+    }
+    if modifiers.contains(crossterm::event::KeyModifiers::SHIFT) {
+        result.push(Value::string("Shift", span));
+    }
+    if modifiers.contains(crossterm::event::KeyModifiers::SUPER) {
+        result.push(Value::string("Super", span));
+    }
+    result
 }
 ```
 
 ### Widget Storage and Rendering
 ```rust
 // Plugin manages widget storage internally
-struct DatatUI {
+struct Datatui {
     widgets: HashMap<WidgetId, Box<dyn Widget>>,
     terminal: Option<Terminal<CrosstermBackend<Stdout>>>,
 }
@@ -451,7 +567,7 @@ fn render_layout(layout: &LayoutDesc, widgets: &HashMap<WidgetId, Box<dyn Widget
 
 // Widget creation commands store widgets and return references:
 impl SimplePluginCommand for ListCommand {
-    fn run(&self, plugin: &DatatUI, engine: &EngineInterface,
+    fn run(&self, plugin: &Datatui, engine: &EngineInterface,
            call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
         // Extract parameters from call
         let items = call.get_flag_value("items")?.unwrap_or_default();
