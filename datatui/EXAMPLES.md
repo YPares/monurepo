@@ -9,26 +9,34 @@ A basic file explorer demonstrating core datatui concepts:
 
 # Simple file browser example
 def main [] {
-  let initial_state = {
+  # Initialize terminal
+  datatui init
+  
+  # Application state
+  let mut state = {
     current_dir: (pwd)
     items: (ls | select name type size)
     cursor: 0
     preview: ""
   }
   
-  let render = {|state, events|
-    # Process events first
-    let new_state = $events | reduce --fold $state {|event, acc|
+  # Main event loop - user controls everything
+  loop {
+    # Get events from terminal
+    let events = datatui events
+    
+    # Process events and update state
+    $state = $events | reduce --fold $state {|event, acc|
       match $event {
-        {type: "key", key: "j", widget_id: "file_list"} => {
+        {type: "key", key: "j"} => {
           let new_cursor = ($acc.cursor + 1) | math min (($acc.items | length) - 1)
           $acc | update cursor $new_cursor
         }
-        {type: "key", key: "k", widget_id: "file_list"} => {
+        {type: "key", key: "k"} => {
           let new_cursor = ($acc.cursor - 1) | math max 0
           $acc | update cursor $new_cursor
         }
-        {type: "key", key: "enter", widget_id: "file_list"} => {
+        {type: "key", key: "Enter"} => {
           let selected = $acc.items | get $acc.cursor
           if $selected.type == "dir" {
             cd $selected.name
@@ -42,55 +50,47 @@ def main [] {
             $acc | update preview (open $selected.name | str substring 0..1000)
           }
         }
-        {type: "select", index: $idx, widget_id: "file_list"} => {
-          $acc | update cursor $idx
-        }
-        {type: "key", key: "q"} => (exit)
+        {type: "key", key: "q"} => break  # Exit loop
         _ => $acc
       }
     }
     
-    # Build UI description
-    let selected_item = $new_state.items | get -i $new_state.cursor
+    # Create widgets using commands
+    let selected_item = $state.items | get -i $state.cursor
     
-    {
-      state: $new_state
-      ui: {
-        layout: {
-          direction: horizontal
-          panes: [
-            {
-              widget: {
-                type: "list"
-                id: "file_list"    # Required for event targeting
-                items: ($new_state.items | each {|item| 
-                  $"($item.name) (if $item.type == 'dir' {'/'} else {'')"
-                })
-                selected: $new_state.cursor
-                title: $"Directory: ($new_state.current_dir)"
-              }
-              size: "50%"
-            }
-            {
-              widget: {
-                type: "text"
-                content: (if ($selected_item.type? == "file") {
-                  $new_state.preview
-                } else {
-                  $"($selected_item.name)\nType: ($selected_item.type)\nSize: ($selected_item.size)"
-                })
-                wrap: true
-                title: "Preview"
-              }
-              size: "*"
-            }
-          ]
-        }
-      }
+    let file_list = datatui list 
+      --items ($state.items | each {|item| 
+        $"($item.name) (if $item.type == 'dir' {'/'} else {''})"
+      })
+      --selected $state.cursor
+      --title $"Directory: ($state.current_dir)"
+      --scrollable
+    
+    let preview_content = if ($selected_item.type? == "file") {
+      $state.preview
+    } else {
+      $"($selected_item.name)\nType: ($selected_item.type)\nSize: ($selected_item.size)"
     }
+    
+    let preview = datatui text 
+      --content $preview_content
+      --wrap
+      --title "Preview"
+    
+    # Render layout
+    {
+      layout: {
+        direction: horizontal
+        panes: [
+          {widget: $file_list, size: "50%"}
+          {widget: $preview, size: "*"}
+        ]
+      }
+    } | datatui render
   }
   
-  datatui run --state $initial_state --render $render
+  # Clean up terminal
+  datatui terminate
 }
 ```
 
@@ -102,7 +102,10 @@ Multi-pane process management interface:
 #!/usr/bin/env nu
 
 def main [] {
-  let initial_state = {
+  # Initialize terminal
+  datatui init
+  
+  let mut state = {
     processes: (ps | where pid != $nu.pid | select pid name cpu mem)
     selected: 0
     log_lines: []
@@ -110,17 +113,18 @@ def main [] {
     view_mode: "list"  # "list" or "details"
   }
   
-  let render = {|state, events|
-    # Process events first
-    let new_state = $events | reduce --fold $state {|event, acc|
+  loop {
+    let events = datatui events
+    
+    $state = $events | reduce --fold $state {|event, acc|
       match $event {
-        {type: "key", key: "j", widget_id: "process_table"} => {
+        {type: "key", key: "j"} => {
           $acc | update selected (($acc.selected + 1) | math min (($acc.processes | length) - 1))
         }
-        {type: "key", key: "k", widget_id: "process_table"} => {
+        {type: "key", key: "k"} => {
           $acc | update selected (($acc.selected - 1) | math max 0)
         }
-        {type: "key", key: "enter", widget_id: "process_table"} => {
+        {type: "key", key: "Enter"} => {
           if $acc.view_mode == "list" {
             let selected_proc = $acc.processes | get $acc.selected
             $acc 
@@ -128,7 +132,7 @@ def main [] {
             | update log_lines (get-process-logs $selected_proc.pid)
           } else { $acc }
         }
-        {type: "key", key: "esc"} => {
+        {type: "key", key: "Escape"} => {
           $acc | update view_mode "list" | update filter ""
         }
         {type: "key", key: "/"} => {
@@ -139,78 +143,64 @@ def main [] {
           # Refresh process list
           $acc | update processes (ps | where pid != $nu.pid | select pid name cpu mem)
         }
-        {type: "key", key: "q"} => (exit)
+        {type: "key", key: "q"} => break
         _ => $acc
       }
     }
     
-    let filtered_procs = if ($new_state.filter | is-empty) {
-      $new_state.processes
+    let filtered_procs = if ($state.filter | is-empty) {
+      $state.processes
     } else {
-      $new_state.processes | where ($it.name | str contains $new_state.filter)
+      $state.processes | where ($it.name | str contains $state.filter)
     }
     
-    {
-      state: $new_state
-      ui: {
-        layout: (match $new_state.view_mode {
-          "list" => {
-            direction: vertical
-            panes: [
-              {
-                widget: {
-                  type: "text"
-                  content: $"Filter: ($new_state.filter) | Press '/' to filter, 'Enter' for details"
-                  style: "dim"
-                }
-                size: 1
-              }
-              {
-                widget: {
-                  type: "table"
-                  id: "process_table"    # Required for event targeting
-                  columns: ["pid", "name", "cpu", "mem"]
-                  rows: ($filtered_procs | each {|p| [$p.pid $p.name $"($p.cpu)%" $p.mem]})
-                  selected: $new_state.selected
-                  sortable: true
-                }
-                size: "*"
-              }
-            ]
-          }
-          "details" => {
-            let selected_proc = $filtered_procs | get -i $new_state.selected
-            {
-              direction: horizontal
-              panes: [
-                {
-                  widget: {
-                    type: "list"
-                    id: "process_list"
-                    items: ($filtered_procs | each {|p| $"($p.pid): ($p.name)"})
-                    selected: $new_state.selected
-                    title: "Processes"
-                  }
-                  size: "30%"
-                }
-                {
-                  widget: {
-                    type: "text"
-                    content: ($new_state.log_lines | str join "\n")
-                    title: $"Logs: ($selected_proc.name)"
-                    scrollable: true
-                  }
-                  size: "*"
-                }
-              ]
-            }
-          }
-        })
-      }
+    # Create widgets based on view mode
+    if $state.view_mode == "list" {
+      let status_bar = datatui text 
+        --content $"Filter: ($state.filter) | Press '/' to filter, 'Enter' for details"
+        --style "dim"
+      
+      let process_table = datatui table 
+        --columns ["pid", "name", "cpu", "mem"]
+        --rows ($filtered_procs | each {|p| [$p.pid $p.name $"($p.cpu)%" $p.mem]})
+        --selected $state.selected
+        --sortable
+      
+      {
+        layout: {
+          direction: vertical
+          panes: [
+            {widget: $status_bar, size: 1}
+            {widget: $process_table, size: "*"}
+          ]
+        }
+      } | datatui render
+    } else {
+      let selected_proc = $filtered_procs | get -i $state.selected
+      
+      let process_list = datatui list
+        --items ($filtered_procs | each {|p| $"($p.pid): ($p.name)"})
+        --selected $state.selected
+        --title "Processes"
+      
+      let log_viewer = datatui text
+        --content ($state.log_lines | str join "\n")
+        --title $"Logs: ($selected_proc.name)"
+        --scrollable
+      
+      {
+        layout: {
+          direction: horizontal
+          panes: [
+            {widget: $process_list, size: "30%"}
+            {widget: $log_viewer, size: "*"}
+          ]
+        }
+      } | datatui render
     }
   }
   
-  datatui run --state $initial_state --render $render
+  datatui terminate
 }
 
 def get-process-logs [pid: int] {
@@ -219,7 +209,7 @@ def get-process-logs [pid: int] {
     $"Process ($pid) started"
     "Loading configuration..."
     "Service running normally"
-    "Last heartbeat: (date now)"
+    $"Last heartbeat: (date now)"
   ]
 }
 ```
@@ -234,7 +224,9 @@ Interactive table with sorting and filtering:
 def main [file: path] {
   let data = open $file
   
-  let initial_state = {
+  datatui init
+  
+  let mut state = {
     data: $data
     displayed_data: $data
     sort_column: null
@@ -244,14 +236,15 @@ def main [file: path] {
     columns: ($data | first | columns)
   }
   
-  let render = {|state, events|
-    # Process events first
-    let new_state = $events | reduce --fold $state {|event, acc|
+  loop {
+    let events = datatui events
+    
+    $state = $events | reduce --fold $state {|event, acc|
       match $event {
-        {type: "key", key: "j", widget_id: "data_table"} => {
+        {type: "key", key: "j"} => {
           $acc | update cursor (($acc.cursor + 1) | math min (($acc.displayed_data | length) - 1))
         }
-        {type: "key", key: "k", widget_id: "data_table"} => {
+        {type: "key", key: "k"} => {
           $acc | update cursor (($acc.cursor - 1) | math max 0)
         }
         {type: "key", key: "s"} => {
@@ -311,200 +304,49 @@ def main [file: path] {
           | update displayed_data $acc.data
           | update cursor 0
         }
-        {type: "key", key: "q"} => (exit)
+        {type: "key", key: "q"} => break
         _ => $acc
       }
     }
     
-    {
-      state: $new_state
-      ui: {
-        layout: {
-          direction: vertical
-          panes: [
-            # Header with controls
-            {
-              widget: {
-                type: "text"
-                content: ([
-                  $"File: ($file)"
-                  $"Rows: ($new_state.displayed_data | length) / ($new_state.data | length)"
-                  $"Sort: ($new_state.sort_column // 'none') ($new_state.sort_direction)"
-                  $"Filter: ($new_state.filter)"
-                  ""
-                  "Controls: ↑↓ Navigate | s Sort | f Filter | q Quit"
-                ] | str join " | ")
-                style: "bold"
-              }
-              size: 2
-            }
-            
-            # Main data table
-            {
-              widget: {
-                type: "table"
-                id: "data_table"    # Required for event targeting
-                columns: $new_state.columns
-                rows: ($new_state.displayed_data | each {|row|
-                  $new_state.columns | each {|col| $row | get -i $col | into string}
-                })
-                selected: $new_state.cursor
-                highlight_headers: true
-              }
-              size: "*"
-            }
-          ]
-        }
-      }
-    }
-  }
-  
-  datatui run --state $initial_state --render $render
-}
-```
-
-## Real-time System Monitor
-
-Live updating dashboard:
-
-```nu
-#!/usr/bin/env nu
-
-def main [] {
-  let initial_state = {
-    cpu_usage: []
-    memory_usage: 0
-    processes: []
-    network_io: {rx: 0, tx: 0}
-    last_update: (date now)
-    update_interval: 2sec
-    selected_tab: 0  # 0=overview, 1=processes, 2=network
-  }
-  
-  let render = {|state, events|
-    # Process events first
-    let new_state = $events | reduce --fold $state {|event, acc|
-      match $event {
-        {type: "key", key: "Tab"} => {
-          $acc | update selected_tab (($acc.selected_tab + 1) mod 3)
-        }
-        {type: "key", key: "r"} => {
-          # Manual refresh
-          refresh-system-stats $acc
-        }
-        {type: "timer"} => {
-          # Auto-refresh every 2 seconds
-          if ((date now) - $acc.last_update) > $acc.update_interval {
-            refresh-system-stats $acc
-          } else {
-            $acc
-          }
-        }
-        {type: "key", key: "q"} => (exit)
-        _ => $acc
-      }
-    }
+    # Create widgets
+    let header = datatui text
+      --content ([
+        $"File: ($file)"
+        $"Rows: ($state.displayed_data | length) / ($state.data | length)"
+        $"Sort: ($state.sort_column // 'none') ($state.sort_direction)"
+        $"Filter: ($state.filter)"
+        ""
+        "Controls: ↑↓ Navigate | s Sort | f Filter | q Quit"
+      ] | str join " | ")
+      --style "bold"
     
-    let tabs = ["Overview", "Processes", "Network"]
+    let data_table = datatui table
+      --columns $state.columns
+      --rows ($state.displayed_data | each {|row|
+        $state.columns | each {|col| $row | get -i $col | into string}
+      })
+      --selected $state.cursor
+      --highlight-headers
     
     {
-      state: $new_state
-      ui: {
-        layout: {
-          direction: vertical
-          panes: [
-            # Tab bar
-            {
-              widget: {
-                type: "tabs"
-                id: "tab_bar"
-                tabs: $tabs
-                selected: $new_state.selected_tab
-              }
-              size: 1
-            }
-            
-            # Tab content
-            {
-              widget: (match $new_state.selected_tab {
-                0 => {  # Overview
-                  type: "layout"
-                  direction: vertical
-                  panes: [
-                    {
-                      widget: {
-                        type: "gauge"
-                        value: $new_state.memory_usage
-                        label: "Memory Usage"
-                        style: "green"
-                      }
-                      size: 3
-                    }
-                    {
-                      widget: {
-                        type: "chart"
-                        data: $new_state.cpu_usage
-                        title: "CPU Usage Over Time"
-                        type: "line"
-                      }
-                      size: "*"
-                    }
-                  ]
-                }
-                1 => {  # Processes
-                  type: "table"
-                  id: "process_table"
-                  columns: ["pid", "name", "cpu", "memory"]
-                  rows: ($new_state.processes | each {|p| 
-                    [$p.pid $p.name $"($p.cpu)%" $"($p.memory)MB"]
-                  })
-                  sortable: true
-                }
-                2 => {  # Network
-                  type: "text"
-                  content: ([
-                    "Network I/O Statistics"
-                    ""
-                    $"RX: ($new_state.network_io.rx) bytes"
-                    $"TX: ($new_state.network_io.tx) bytes" 
-                    ""
-                    $"Last Update: ($new_state.last_update)"
-                  ] | str join "\n")
-                }
-              })
-              size: "*"
-            }
-            
-            # Status bar
-            {
-              widget: {
-                type: "text"
-                content: $"[Tab] Switch tabs | [r] Refresh | [q] Quit | Updated: ($new_state.last_update | date humanize)"
-                style: "dim"
-              }
-              size: 1
-            }
-          ]
-        }
+      layout: {
+        direction: vertical
+        panes: [
+          {widget: $header, size: 2}
+          {widget: $data_table, size: "*"}
+        ]
       }
-    }
+    } | datatui render
   }
   
-  datatui run --state $initial_state --render $render
-}
-
-def refresh-system-stats [state] {
-  $state
-  | update memory_usage (sys mem | get used | math round)
-  | update processes (ps | select pid name cpu mem | first 10)
-  | update cpu_usage ($state.cpu_usage ++ [(sys cpu | get cpu | math avg)] | last 20)
-  | update last_update (date now)
+  datatui terminate
 }
 ```
 
 ## Streaming Log Viewer
 
-Streaming data with automatic updates:
+Real-time streaming data with automatic updates:
 
 ```nu
 #!/usr/bin/env nu
@@ -512,12 +354,14 @@ Streaming data with automatic updates:
 def main [log_file?: path] {
   let file = $log_file | default "/var/log/app.log"
   
+  datatui init
+  
   # Create streaming data sources - returns StreamId custom values
   let app_log_stream = datatui stream {|| tail -f $file}
   let error_log_stream = datatui stream {|| tail -f "/var/log/error.log"}
   let process_stream = datatui stream {|| ps | select pid name cpu | to json}
   
-  let initial_state = {
+  let mut state = {
     # Store StreamIds, not the data itself
     streams: {
       app_log: $app_log_stream
@@ -532,23 +376,24 @@ def main [log_file?: path] {
     filter: ""
   }
   
-  let render = {|state, events|
-    # Process events first
-    let new_state = $events | reduce --fold $state {|event, acc|
+  loop {
+    let events = datatui events
+    
+    $state = $events | reduce --fold $state {|event, acc|
       match $event {
         {type: "key", key: "Tab"} => {
           $acc | update selected_tab (($acc.selected_tab + 1) mod 3)
         }
-        {type: "key", key: "j", widget_id: "log_viewer"} => {
+        {type: "key", key: "j"} => {
           $acc | update scroll_position (($acc.scroll_position + 1) | math max 0)
         }
-        {type: "key", key: "k", widget_id: "log_viewer"} => {
+        {type: "key", key: "k"} => {
           $acc | update scroll_position (($acc.scroll_position - 1) | math max 0)
         }
-        {type: "key", key: "G", widget_id: "log_viewer"} => {
+        {type: "key", key: "G"} => {
           $acc | update scroll_position -1 | update auto_scroll true  # -1 = end
         }
-        {type: "key", key: "g", widget_id: "log_viewer"} => {
+        {type: "key", key: "g"} => {
           $acc | update scroll_position 0 | update auto_scroll false
         }
         {type: "key", key: "a"} => {
@@ -573,83 +418,66 @@ def main [log_file?: path] {
         {type: "key", key: "c"} => {
           $acc | update filter ""
         }
-        {type: "key", key: "q"} => (exit)
+        {type: "key", key: "q"} => break
         _ => $acc
       }
     }
     
     let tabs = ["App Log", "Error Log", "Processes"]
     
-    {
-      state: $new_state
-      ui: {
-        layout: {
-          direction: vertical
-          panes: [
-            # Tab bar
-            {
-              widget: {
-                type: "tabs"
-                id: "tab_bar"
-                tabs: $tabs
-                selected: $new_state.selected_tab
-              }
-              size: 1
-            }
-            
-            # Main content based on selected tab
-            {
-              widget: (match $new_state.selected_tab {
-                0 | 1 => {  # Log viewers
-                  let stream = if $new_state.selected_tab == 0 {
-                    $new_state.streams.app_log
-                  } else {
-                    $new_state.streams.error_log
-                  }
-                  
-                  {
-                    type: "streaming_text"
-                    id: "log_viewer"    # Required for event targeting
-                    stream: $stream     # Reference StreamId
-                    filter: $new_state.filter
-                    scroll_position: $new_state.scroll_position
-                    auto_scroll: $new_state.auto_scroll
-                    title: ($tabs | get $new_state.selected_tab)
-                    wrap: true
-                  }
-                }
-                2 => {  # Process table
-                  type: "streaming_table"
-                  id: "process_table"
-                  stream: $new_state.streams.processes
-                  columns: ["pid", "name", "cpu"]
-                  refresh_rate: "2sec"
-                  title: "Processes"
-                }
-              })
-              size: "*"
-            }
-            
-            # Status bar
-            {
-              widget: {
-                type: "text"
-                content: ([
-                  $"Filter: ($new_state.filter)"
-                  $"Auto-scroll: ($new_state.auto_scroll)"
-                  "[Tab] Switch | [/] Filter | [a] Toggle auto-scroll | [r] Refresh | [q] Quit"
-                ] | str join " | ")
-                style: "dim"
-              }
-              size: 1
-            }
-          ]
+    # Create tab bar
+    let tab_bar = datatui tabs
+      --tabs $tabs
+      --selected $state.selected_tab
+    
+    # Create main content based on selected tab
+    let main_widget = match $state.selected_tab {
+      0 | 1 => {  # Log viewers
+        let stream = if $state.selected_tab == 0 {
+          $state.streams.app_log
+        } else {
+          $state.streams.error_log
         }
+        
+        datatui streaming-text
+          --stream $stream
+          --filter $state.filter
+          --scroll-position $state.scroll_position
+          --auto-scroll $state.auto_scroll
+          --title ($tabs | get $state.selected_tab)
+          --wrap
+      }
+      2 => {  # Process table
+        datatui streaming-table
+          --stream $state.streams.processes
+          --columns ["pid", "name", "cpu"]
+          --refresh-rate "2sec"
+          --title "Processes"
       }
     }
+    
+    # Status bar
+    let status = datatui text
+      --content ([
+        $"Filter: ($state.filter)"
+        $"Auto-scroll: ($state.auto_scroll)"
+        "[Tab] Switch | [/] Filter | [a] Toggle auto-scroll | [r] Refresh | [q] Quit"
+      ] | str join " | ")
+      --style "dim"
+    
+    {
+      layout: {
+        direction: vertical
+        panes: [
+          {widget: $tab_bar, size: 1}
+          {widget: $main_widget, size: "*"}
+          {widget: $status, size: 1}
+        ]
+      }
+    } | datatui render
   }
   
-  datatui run --state $initial_state --render $render
+  datatui terminate
 }
 ```
 
@@ -692,18 +520,19 @@ def navigate-list [state: record, direction: string] {
   $state | update cursor $new_cursor
 }
 
-# Usage in render function event processing
-let render = {|state, events|
-  let new_state = $events | reduce --fold $state {|event, acc|
+# Usage in main loop event processing
+loop {
+  let events = datatui events
+  $state = $events | reduce --fold $state {|event, acc|
     match $event {
-      {type: "key", key: "j", widget_id: "main_list"} => (navigate-list $acc "down")
-      {type: "key", key: "k", widget_id: "main_list"} => (navigate-list $acc "up")
-      {type: "key", key: "g", widget_id: "main_list"} => (navigate-list $acc "home")
-      {type: "key", key: "G", widget_id: "main_list"} => (navigate-list $acc "end")
+      {type: "key", key: "j"} => (navigate-list $acc "down")
+      {type: "key", key: "k"} => (navigate-list $acc "up")
+      {type: "key", key: "g"} => (navigate-list $acc "home")
+      {type: "key", key: "G"} => (navigate-list $acc "end")
       _ => $acc
     }
   }
-  # ... return {state: $new_state, ui: ...}
+  # ... render widgets
 }
 ```
 
@@ -712,42 +541,36 @@ let render = {|state, events|
 ```nu
 # Reusable widget builders
 def build-file-list [files: list<record>, selected: int] {
-  {
-    type: "list"
-    items: ($files | each {|f| $"($f.name) (if $f.type == 'dir' {'/'} else {''})"})
-    selected: $selected
-    scrollable: true
-  }
+  datatui list
+    --items ($files | each {|f| $"($f.name) (if $f.type == 'dir' {'/'} else {''})"})
+    --selected $selected
+    --scrollable
 }
 
 def build-preview-pane [content: string] {
-  {
-    type: "text"
-    content: $content
-    wrap: true
-    scrollable: true
-    title: "Preview"
-  }
+  datatui text
+    --content $content
+    --wrap
+    --scrollable
+    --title "Preview"
 }
 
-# Usage in render function
-let render = {|state, events|
-  # Process events first...
-  let new_state = $events | reduce --fold $state {|event, acc|
-    # ... event processing ...
-  }
+# Usage in main loop
+loop {
+  let events = datatui events
+  # ... process events ...
+  
+  let file_list = build-file-list $state.files $state.cursor
+  let preview = build-preview-pane $state.preview
   
   {
-    state: $new_state
-    ui: {
-      layout: {
-        direction: horizontal
-        panes: [
-          {widget: (build-file-list $new_state.files $new_state.cursor), size: "40%"}
-          {widget: (build-preview-pane $new_state.preview), size: "*"}
-        ]
-      }
+    layout: {
+      direction: horizontal
+      panes: [
+        {widget: $file_list, size: "40%"}
+        {widget: $preview, size: "*"}
+      ]
     }
-  }
+  } | datatui render
 }
 ```

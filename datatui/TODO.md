@@ -16,20 +16,26 @@
   - [ ] Proper cleanup on exit/panic
   - [ ] Signal handling (SIGINT, SIGTERM)
 
-- [ ] **Event Loop Core**
-  - [ ] Basic keyboard input handling
-  - [ ] Event → Nu closure dispatch system
-  - [ ] State serialization/deserialization (Nu ↔ JSON)
+- [ ] **Command Structure**
+  - [ ] `datatui init` - terminal initialization
+  - [ ] `datatui events` - crossterm event collection
+  - [ ] `datatui render` - layout rendering
+  - [ ] `datatui terminate` - terminal cleanup
   - [ ] Error handling and recovery
 
-- [ ] **Basic Widget System**
-  - [ ] Text widget (simple paragraph rendering)
-  - [ ] Widget trait abstraction for plugin architecture
+- [ ] **Widget Command System**
+  - [ ] `datatui text` - text widget creation
+  - [ ] `datatui list` - list widget creation  
+  - [ ] Widget storage (HashMap<WidgetId, Widget>)
+  - [ ] Widget reference custom values (WidgetRef)
   - [ ] Basic layout system (single pane)
 
 ### Milestone: "Hello World" TUI
 ```nu
-datatui run --state {message: "Hello World"} --render {|s| {widget: {type: "text", content: $s.message}}}
+datatui init
+let text_widget = datatui text --content "Hello World!"
+$text_widget | datatui render
+datatui terminate
 ```
 
 ## Phase 2: Core Widgets 📦
@@ -235,9 +241,10 @@ Live updating dashboard with multiple data sources (see EXAMPLES.md)
 - **Platforms**: Primary development on Linux, with Windows/macOS CI testing
 
 ### Communication Protocol
-- **Nu ↔ Plugin**: JSON-RPC over stdin/stdout
-- **State Transfer**: Serialize Nu records to JSON, deserialize back
-- **Event Callbacks**: Execute Nu closures via plugin protocol
+- **Nu ↔ Plugin**: JSON-RPC over stdin/stdout (handled by nu-plugin crate)
+- **Widget Creation**: Command parameters → Widget storage + WidgetRef return
+- **Event Flow**: Plugin collects crossterm events → Nu processes in loop
+- **Rendering**: Nu sends layout with WidgetRefs → Plugin renders via ratatui
 - **Error Handling**: Structured error responses with context
 
 This roadmap provides a clear path from basic functionality to full feature parity with existing tools, while maintaining focus on the core value proposition of bridging Nu's data manipulation capabilities with rich terminal UIs.
