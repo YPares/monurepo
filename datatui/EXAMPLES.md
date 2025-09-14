@@ -13,7 +13,7 @@ def main [] {
   datatui init
   
   # Application state
-  let mut state = {
+  mut state = {
     current_dir: (pwd)
     items: (ls | select name type size)
     cursor: 0
@@ -56,7 +56,7 @@ def main [] {
     }
     
     # Create widgets using commands
-    let selected_item = $state.items | get -i $state.cursor
+    let selected_item = $state.items | get -o $state.cursor
     
     let file_list = datatui list 
       --items ($state.items | each {|item| 
@@ -105,7 +105,7 @@ def main [] {
   # Initialize terminal
   datatui init
   
-  let mut state = {
+  mut state = {
     processes: (ps | where pid != $nu.pid | select pid name cpu mem)
     selected: 0
     log_lines: []
@@ -176,7 +176,7 @@ def main [] {
         }
       } | datatui render
     } else {
-      let selected_proc = $filtered_procs | get -i $state.selected
+      let selected_proc = $filtered_procs | get -o $state.selected
       
       let process_list = datatui list
         --items ($filtered_procs | each {|p| $"($p.pid): ($p.name)"})
@@ -226,7 +226,7 @@ def main [file: path] {
   
   datatui init
   
-  let mut state = {
+  mut state = {
     data: $data
     displayed_data: $data
     sort_column: null
@@ -250,7 +250,7 @@ def main [file: path] {
         {type: "key", key: "s"} => {
           # Sort menu - cycle through columns
           let columns = $acc.columns ++ [null]  # null = no sort
-          let current_idx = $columns | enumerate | where item == $acc.sort_column | first | get -i index | default -1
+          let current_idx = $columns | enumerate | where item == $acc.sort_column | first | get -o index | default -1
           let next_idx = ($current_idx + 1) mod ($columns | length)
           let next_column = $columns | get $next_idx
           
@@ -286,7 +286,7 @@ def main [file: path] {
             if ($parts | length) == 2 {
               let col = $parts | first
               let val = $parts | last
-              $acc.data | where ($it | get -i $col | into string | str contains $val)
+              $acc.data | where ($it | get -o $col | default "" | into string | str contains $val)
             } else {
               $acc.data
             }
@@ -314,7 +314,7 @@ def main [file: path] {
       --content ([
         $"File: ($file)"
         $"Rows: ($state.displayed_data | length) / ($state.data | length)"
-        $"Sort: ($state.sort_column // 'none') ($state.sort_direction)"
+        $"Sort: ($state.sort_column | default 'none') ($state.sort_direction)"
         $"Filter: ($state.filter)"
         ""
         "Controls: ↑↓ Navigate | s Sort | f Filter | q Quit"
@@ -324,7 +324,7 @@ def main [file: path] {
     let data_table = datatui table
       --columns $state.columns
       --rows ($state.displayed_data | each {|row|
-        $state.columns | each {|col| $row | get -i $col | into string}
+        $state.columns | each {|col| $row | get -o $col | default "" | into string}
       })
       --selected $state.cursor
       --highlight-headers
@@ -361,7 +361,7 @@ def main [log_file?: path] {
   let error_log_stream = datatui stream {|| tail -f "/var/log/error.log"}
   let process_stream = datatui stream {|| ps | select pid name cpu | to json}
   
-  let mut state = {
+  mut state = {
     # Store StreamIds, not the data itself
     streams: {
       app_log: $app_log_stream
