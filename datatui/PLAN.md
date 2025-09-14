@@ -301,7 +301,7 @@ $state | update streams.processes $refreshed_processes
 ## Implementation Plan
 
 ### Phase 1: Core Infrastructure
-- [ ] Basic Nushell plugin setup with JSON-RPC
+- [ ] Basic Nushell plugin setup
 - [ ] Terminal initialization/cleanup
 - [ ] Event loop with keyboard input
 - [ ] State management (serialize/deserialize between Nu and Rust)
@@ -327,18 +327,9 @@ $state | update streams.processes $refreshed_processes
 
 ## Technical Challenges
 
-### Plugin Communication
-- **Challenge**: Nu plugins use JSON-RPC over stdin/stdout
-- **Solution**: Efficient serialization of state and UI descriptions
-- **Consideration**: Large datasets might need streaming or chunking
-
 ### Terminal State Management
 - **Challenge**: Coordinate between Nu script execution and terminal UI
 - **Solution**: Plugin handles all terminal operations, Nu only provides data/logic
-
-### Event Loop Integration
-- **Challenge**: Blocking event loop in plugin while maintaining Nu responsiveness
-- **Solution**: Plugin runs its own event loop, calls back to Nu for state updates
 
 ### Widget State Synchronization
 - **Challenge**: Ratatui widgets maintain internal state (scroll positions)
@@ -360,14 +351,13 @@ $state | update streams.processes $refreshed_processes
 - **[Dear ImGui FAQ](https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-what-is-immediate-mode-gui-dear-imgui)**: Immediate-mode GUI philosophy and patterns
 
 ### Implementation References  
-- **jjiles codebase**: Complex TUI requirements, streaming data, multi-view navigation
-- **nucess requirements**: Multi-pane layouts, process management, real-time updates  
 - **[Nu-plugin examples](https://github.com/nushell/nushell/tree/main/crates/nu_plugin_example)**: Reference plugin implementation
 - **[Ratatui examples](https://github.com/ratatui/ratatui/tree/main/examples)**: Widget usage patterns and state management
 
 ### Related Projects
-- **[nu_plugin_explore](https://github.com/nushell/nushell/tree/main/crates/nu-explore)**: Nushell's built-in TUI explorer using ratatui
-- **[Crossterm](https://docs.rs/crossterm/latest/crossterm/)**: Cross-platform terminal manipulation library
+- **[nu-explore](https://github.com/nushell/nushell/tree/main/crates/nu-explore)**: Nushell's built-in TUI explorer using ratatui
+- **[crossterm](https://docs.rs/crossterm/latest/crossterm/)**: Cross-platform terminal manipulation library
+- **[nucess](../nucess)**: Currently a skeleton of a nushell plugin starting a TUI display via ratatui
 
 ## Future Evolution
 
@@ -376,8 +366,3 @@ $state | update streams.processes $refreshed_processes
 - **Advanced widgets**: Trees, graphs, charts
 - **Plugin ecosystem**: Community-contributed widget types
 - **Cross-platform**: Ensure Windows/Mac/Linux compatibility
-
-### Alternative Approaches
-If the plugin model proves limiting:
-- **Standalone binary**: Like current jjiles approach, but purpose-built
-- **Nu built-in**: Integration directly into Nushell core (long-term possibility)
