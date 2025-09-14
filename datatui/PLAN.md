@@ -119,6 +119,10 @@ datatui run --state $state --render $render
 # Main immediate-mode loop - render function handles everything
 datatui run --state $initial_state --render $render_closure
 
+# Create streaming data source (returns StreamId custom value)
+let log_stream = datatui stream {|| tail -f /var/log/app.log}
+let process_data = datatui stream {|| ps | to json}
+
 # Widget descriptions (no callbacks - pure data)
 {
   type: "list"
@@ -141,6 +145,15 @@ datatui run --state $initial_state --render $render_closure
   content: $text_content
   scrollable: true
   wrap: true
+}
+
+# Streaming widgets (Phase 2)
+{
+  type: "streaming_text"
+  id: "log_viewer"
+  stream: $log_stream     # StreamId from datatui stream
+  scroll_position: $state.log_scroll
+  auto_scroll: true
 }
 
 # Layout descriptions
@@ -229,6 +242,71 @@ Widgets are pure data descriptions returned by the render function:
   }
 }
 ```
+
+### Streaming Data (Phase 2)
+
+For real-time data streams (logs, process output, file changes), datatui uses a functional stream management approach:
+
+```nu
+# 1. Create streams - execute closures once, return StreamId
+let app_log = datatui stream {|| tail -f /var/log/app.log}
+let error_log = datatui stream {|| tail -f /var/log/error.log}
+let process_list = datatui stream {|| ps | select pid name cpu | to json}
+
+# 2. Store StreamIds in state (not the data itself)
+let initial_state = {
+  streams: {
+    app_log: $app_log
+    error_log: $error_log
+    processes: $process_list
+  }
+  log_scroll: 0
+  selected_tab: 0
+}
+
+# 3. Reference streams in render function
+let render = {|state, events|
+  let new_state = # ... process events ...
+  
+  {
+    state: $new_state
+    ui: {
+      layout: horizontal
+      panes: [
+        {
+          widget: {
+            type: "streaming_text"
+            stream: $new_state.streams.app_log    # Reference stream by ID
+            scroll_position: $new_state.log_scroll
+            auto_scroll: true
+          }
+          size: "70%"
+        }
+        {
+          widget: {
+            type: "streaming_table"
+            stream: $new_state.streams.processes
+            columns: ["pid", "name", "cpu"]
+            refresh_rate: "2sec"
+          }
+          size: "30%"
+        }
+      ]
+    }
+  }
+}
+
+# 4. To refresh data: create new stream, old one gets GC'd
+let refreshed_processes = datatui stream {|| ps | select pid name cpu mem | to json}
+$state | update streams.processes $refreshed_processes
+```
+
+**Key Benefits:**
+- **Functional**: Streams are immutable references, refresh by replacement
+- **Automatic Cleanup**: Nu's GC calls `drop_notification()` on old StreamIds
+- **No Side Effects**: Closures only executed on explicit `datatui stream` calls
+- **Memory Efficient**: Plugin manages data internally, state only holds references
+- **Scalable**: Works with any size dataset (logs, metrics, large tables)
 
 ## Implementation Plan
 
