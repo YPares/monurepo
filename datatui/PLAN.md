@@ -27,81 +27,75 @@
 
 ## Architecture
 
-### Events-in-Render Model (True Immediate Mode)
+### User-Controlled Immediate Mode
 
-Inspired by [Dear ImGui](https://github.com/ocornut/imgui) and [ratatui's immediate-mode philosophy](https://ratatui.rs/concepts/backends/), where events are processed during rendering:
+Inspired by [Dear ImGui](https://github.com/ocornut/imgui) and [ratatui's immediate-mode philosophy](https://ratatui.rs/concepts/backends/), but with Nu user controlling the main loop:
 
 ```nu
+# Initialize terminal and enter raw mode
+datatui init
+
 # Application state - arbitrary Nu data structure
-let state = {
+let mut state = {
   selected: 0
   items: (ls | select name size)
   filter: ""
   logs: []
 }
 
-# Pure render function: (state, events) -> {state: new_state, ui: ui_description}
-let render = {|state, events|
-  # Process ALL events first, producing new state
-  let new_state = $events | reduce --fold $state {|event, acc|
+# Main application loop - user controls everything
+loop {
+  # Get events from terminal (blocking until events available)
+  let events = datatui events
+  
+  # Process events and update state
+  $state = $events | reduce --fold $state {|event, acc|
     match $event {
-      {type: "key", key: "j", widget_id: "file_list"} => {
+      {type: "key", key: "j"} => {
         $acc | update selected (($acc.selected + 1) | math min (($acc.items | length) - 1))
       }
-      {type: "key", key: "k", widget_id: "file_list"} => {
+      {type: "key", key: "k"} => {
         $acc | update selected (($acc.selected - 1) | math max 0)
       }
-      {type: "key", key: "enter", widget_id: "file_list"} => {
+      {type: "key", key: "enter"} => {
         let selected_item = $acc.items | get $acc.selected
         if $selected_item.type == "file" {
           $acc | update logs (open $selected_item.name | lines | first 10)
         } else { $acc }
       }
-      {type: "select", index: $idx, widget_id: "file_list"} => {
-        $acc | update selected $idx
+      {type: "key", key: "q"} => {
+        break  # User decides when to exit
       }
       _ => $acc  # Ignore unhandled events
     }
   }
   
-  # Then describe UI based on new state
+  # Create widgets using commands (not records)
+  let file_list = datatui list --items ($state.items | get name) --selected $state.selected
+  let preview = datatui text --content ($state.logs | str join "\n")
+  
+  # Render UI layout with widgets
   {
-    state: $new_state
-    ui: {
-      layout: horizontal
-      panes: [
-        {
-          widget: {
-            type: "list"
-            id: "file_list"  # Widget ID for event targeting
-            items: ($new_state.items | get name)
-            selected: $new_state.selected
-          }
-          size: "30%"
-        }
-        {
-          widget: {
-            type: "text"
-            content: ($new_state.logs | str join "\n")
-          }
-          size: "70%"  
-        }
-      ]
-    }
-  }
+    layout: horizontal
+    panes: [
+      {widget: $file_list, size: "30%"}
+      {widget: $preview, size: "70%"}
+    ]
+  } | datatui render
 }
 
-# Plugin runs the immediate-mode loop
-datatui run --state $state --render $render
+# Clean up terminal and restore normal mode
+datatui terminate
 ```
 
 ### Why This Works
 
-1. **True Immediate Mode**: Events processed during rendering, just like [Dear ImGui](https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-what-is-immediate-mode-gui-dear-imgui)
-2. **No Event Routing**: Render function sees all events and decides what to do
-3. **Functional Purity**: `(state, events) → (new_state, ui_description)` - pure function
-4. **Widget Focus Automatic**: Events include `widget_id` so render function knows context
-5. **Nu-Native**: Leverages Nu's pattern matching and data transformation pipelines
+1. **User-Controlled Loop**: Like traditional ratatui apps, user controls when to exit, render, handle events
+2. **Global Event Model**: Events are crossterm terminal events, not widget-specific - matches ratatui exactly
+3. **Functional State Management**: Nu handles state transformations with immutable updates
+4. **Command-Based Widgets**: All widgets created via commands for discoverability and consistency
+5. **Composable**: Can integrate with other Nu operations, timers, external processes
+6. **Nu-Native**: Leverages Nu's pattern matching, data transformation, and error handling
 
 ### Performance Characteristics
 
@@ -116,80 +110,69 @@ datatui run --state $state --render $render
 ### Core Commands
 
 ```nu
-# Main immediate-mode loop - render function handles everything
-datatui run --state $initial_state --render $render_closure
+# Terminal lifecycle management
+datatui init                    # Initialize terminal, enter raw mode, setup
+datatui terminate              # Restore terminal, cleanup, exit
 
-# Create streaming data source (returns StreamId custom value)
-let log_stream = datatui stream {|| tail -f /var/log/app.log}
-let process_data = datatui stream {|| ps | to json}
+# Event handling
+datatui events                 # Blocking call, returns all events since last call
+datatui events --timeout 100ms # Non-blocking with timeout, returns events or empty list
 
-# Widget descriptions (no callbacks - pure data)
-{
-  type: "list"
-  id: "main_list"       # Required for event targeting
-  items: $data
-  selected: $idx
-  scrollable: true
-}
+# Widget creation commands (return widget references)
+let file_list = datatui list --items $items --selected $cursor --scrollable
+let data_table = datatui table --columns [name status pid] --rows $table_data --sortable
+let preview = datatui text --content $text_content --scrollable --wrap
+let search_box = datatui textarea --placeholder "Search..." --value $current_text
 
-{
-  type: "table" 
-  id: "data_table"
-  columns: [name status pid]
-  rows: $table_data
-  sortable: true
-}
+# Streaming widgets
+let log_stream = datatui stream {|| tail -f /var/log/app.log}  # Create stream
+let log_viewer = datatui streaming-text --stream $log_stream --auto-scroll
+let proc_table = datatui streaming-table --stream $process_stream --refresh-rate "2sec"
 
-{
-  type: "text"
-  content: $text_content
-  scrollable: true
-  wrap: true
-}
-
-# Streaming widgets (Phase 2)
-{
-  type: "streaming_text"
-  id: "log_viewer"
-  stream: $log_stream     # StreamId from datatui stream
-  scroll_position: $state.log_scroll
-  auto_scroll: true
-}
-
-# Layout descriptions
+# Layout and rendering
 {
   layout: {
     direction: horizontal  # or vertical
     panes: [
-      {widget: $widget1, size: "30%"}
-      {widget: $widget2, size: "*"}    # fill remaining
-      {widget: $widget3, size: 20}     # fixed size
+      {widget: $file_list, size: "30%"}
+      {widget: $preview, size: "*"}    # fill remaining
+      {widget: $search_box, size: 3}   # fixed size
     ]
   }
-}
+} | datatui render
+
+# Alternative single-widget rendering
+$file_list | datatui render
 ```
 
 ### Event System
 
-Events are included in the render call as structured data:
+Events are global crossterm events returned by `datatui events`:
 
 ```nu
-# Example events passed to render function
+# Example events returned by datatui events
 let events = [
-  {type: "key", key: "j", widget_id: "main_list", timestamp: (date now)}
-  {type: "key", key: "enter", widget_id: "main_list", timestamp: (date now)}
-  {type: "select", index: 5, widget_id: "main_list", timestamp: (date now)}
+  {type: "key", key: "j", modifiers: [], timestamp: (date now)}
+  {type: "key", key: "Enter", modifiers: [], timestamp: (date now)}
+  {type: "key", key: "q", modifiers: ["Ctrl"], timestamp: (date now)}
+  {type: "mouse", x: 25, y: 10, button: "left", timestamp: (date now)}
   {type: "resize", width: 120, height: 30, timestamp: (date now)}
-  {type: "focus", widget_id: "search_box", timestamp: (date now)}
+  {type: "paste", text: "pasted content", timestamp: (date now)}
 ]
 
-# The render function processes these events using Nu's pattern matching
-let render = {|state, events|
-  let new_state = $events | reduce --fold $state {|event, acc|
+# User processes events in main loop using Nu's pattern matching
+loop {
+  let events = datatui events
+  
+  $state = $events | reduce --fold $state {|event, acc|
     match $event {
-      {type: "key", key: "q"} => (exit) # Global quit
-      {type: "key", key: "j", widget_id: "main_list"} => {
+      {type: "key", key: "q"} => break  # User controls exit
+      {type: "key", key: "j"} => {
         $acc | update cursor (($acc.cursor + 1) | math min (($acc.items | length) - 1))
+      }
+      {type: "key", key: "Enter"} => {
+        # Process selection...
+        $acc | update selected_item ($acc.items | get $acc.cursor)
       }
       {type: "resize", width: $w, height: $h} => {
         $acc | update terminal {width: $w, height: $h}
@@ -198,7 +181,10 @@ let render = {|state, events|
     }
   }
   
-  {state: $new_state, ui: (build-ui $new_state)}
+  
+  # Create widgets and render
+  let file_list = datatui list --items ($state.items | get name) --selected $state.cursor
+  {layout: {panes: [{widget: $file_list}]}} | datatui render
 }
 ```
 
@@ -264,37 +250,41 @@ let initial_state = {
   selected_tab: 0
 }
 
-# 3. Reference streams in render function
-let render = {|state, events|
-  let new_state = # ... process events ...
+# 3. Use streams in user-controlled loop
+datatui init
+
+loop {
+  let events = datatui events
   
+  # Process events and update state
+  $state = $events | reduce --fold $state {|event, acc|
+    # ... event processing ...
+  }
+  
+  # Create streaming widgets using commands
+  let log_viewer = datatui streaming-text
+    --stream $state.streams.app_log
+    --scroll-position $state.log_scroll
+    --auto-scroll
+  
+  let process_table = datatui streaming-table
+    --stream $state.streams.processes
+    --columns ["pid", "name", "cpu"]
+    --refresh-rate "2sec"
+  
+  # Render layout
   {
-    state: $new_state
-    ui: {
-      layout: horizontal
+    layout: {
+      direction: horizontal
       panes: [
-        {
-          widget: {
-            type: "streaming_text"
-            stream: $new_state.streams.app_log    # Reference stream by ID
-            scroll_position: $new_state.log_scroll
-            auto_scroll: true
-          }
-          size: "70%"
-        }
-        {
-          widget: {
-            type: "streaming_table"
-            stream: $new_state.streams.processes
-            columns: ["pid", "name", "cpu"]
-            refresh_rate: "2sec"
-          }
-          size: "30%"
-        }
+        {widget: $log_viewer, size: "70%"}
+        {widget: $process_table, size: "30%"}
       ]
     }
-  }
+  } | datatui render
 }
+
+datatui terminate
 
 # 4. To refresh data: create new stream, old one gets GC'd
 let refreshed_processes = datatui stream {|| ps | select pid name cpu mem | to json}
