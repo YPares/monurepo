@@ -63,7 +63,7 @@ $file_list | datatui render
 datatui terminate
 ```
 
-### Example: Interactive Event Loop (Future)
+### Example: Interactive Event Loop
 
 ```nu
 # Initialize terminal
@@ -93,44 +93,3 @@ loop {
 
 datatui terminate
 ```
-
-## Current Status
-
-This is an early implementation of the datatui plugin with basic functionality:
-
-✅ **Implemented:**
-- Basic plugin structure
-- Terminal initialization/cleanup
-- Event collection (crossterm events)
-- Text widget creation and rendering
-- List widget creation and rendering
-- Single widget rendering
-
-🚧 **In Progress:**
-- Layout system for multiple widgets
-- Streaming data widgets
-- Advanced widget features (scrolling, selection)
-
-📋 **Planned:**
-- Table widgets
-- Menu widgets
-- Input widgets
-- Mouse support
-- Theming and styling
-- Performance optimizations
-
-## Architecture
-
-The plugin follows a user-controlled immediate mode approach:
-- Nu scripts control the main event loop
-- Plugin manages terminal state and widget rendering
-- Widget configurations are stored in the plugin
-- All application logic remains in Nu
-
-## Contributing
-
-This plugin is designed to support the jjiles and nucess projects. For contributing guidelines and technical details, see the documentation in the datatui/ folder.
-
-## License
-
-MIT
