@@ -1,36 +1,65 @@
 # datatui Implementation Roadmap
 
+## 🎉 CURRENT STATUS SUMMARY
+
+### ✅ **COMPLETED (MVP Foundation)**
+We have successfully implemented the core foundation:
+- Basic Nushell plugin structure with proper nu-plugin integration
+- Terminal management (init/terminate) with crossterm backend
+- Event collection system (keyboard, mouse, resize, paste events)
+- Basic widget system (text and list widgets)
+- Widget storage and custom value references
+- Single widget rendering
+- Plugin registration and command discovery
+
+### 🚧 **HIGH PRIORITY TODO (Phase 2)**
+Critical features needed for practical applications:
+
+1. **Layout System** - The biggest missing piece for multi-widget UIs
+2. **StatefulWidget Integration** - For proper scrolling and selection
+3. **Interactive Event Loop Support** - Navigation within widgets
+4. **Table Widget** - Essential for jjiles and nucess
+
+### 📋 **MEDIUM PRIORITY TODO (Phase 3+)**
+Features for advanced applications:
+- Streaming data widgets (datatui stream command)
+- Advanced styling and theming
+- Performance optimizations
+- Additional widget types (menu, input, etc.)
+
+---
+
 ## Phase 1: Foundation (MVP) ✨ Priority
 
 ### Core Infrastructure
-- [ ] **Nushell Plugin Setup**
-  - [ ] Create Cargo workspace with plugin crate
-  - [ ] Implement Plugin and SimplePluginCommand traits (nu-plugin handles JSON-RPC automatically!)
-  - [ ] Set up Nu plugin registration and discovery
-  - [ ] Handle plugin lifecycle (init, run, cleanup)
-  
-- [ ] **Terminal Management**
-  - [ ] Terminal initialization with crossterm backend
-  - [ ] Alternate screen mode handling
-  - [ ] Raw mode setup/cleanup
-  - [ ] Proper cleanup on exit/panic
-  - [ ] Signal handling (SIGINT, SIGTERM)
+- [x] **Nushell Plugin Setup**
+  - [x] Create Cargo workspace with plugin crate
+  - [x] Implement Plugin and SimplePluginCommand traits (nu-plugin handles JSON-RPC automatically!)
+  - [x] Set up Nu plugin registration and discovery
+  - [x] Handle plugin lifecycle (init, run, cleanup)
 
-- [ ] **Command Structure**
-  - [ ] `datatui init` - terminal initialization
-  - [ ] `datatui events` - crossterm event collection
-  - [ ] `datatui render` - layout rendering
-  - [ ] `datatui terminate` - terminal cleanup
-  - [ ] Error handling and recovery
+- [x] **Terminal Management**
+  - [x] Terminal initialization with crossterm backend
+  - [x] Alternate screen mode handling
+  - [x] Raw mode setup/cleanup
+  - [ ] Proper cleanup on exit/panic  # TODO: Add panic handlers and signal handling
+  - [ ] Signal handling (SIGINT, SIGTERM)  # TODO: Implement graceful shutdown on signals
 
-- [ ] **Widget Command System**
-  - [ ] `datatui text` - text widget creation
-  - [ ] `datatui list` - list widget creation  
-  - [ ] Widget storage (HashMap<WidgetId, Widget>)
-  - [ ] Widget reference custom values (WidgetRef)
-  - [ ] Basic layout system (single pane)
+- [x] **Command Structure**
+  - [x] `datatui init` - terminal initialization
+  - [x] `datatui events` - crossterm event collection
+  - [x] `datatui render` - layout rendering (single widget only)
+  - [x] `datatui terminate` - terminal cleanup
+  - [x] Error handling and recovery
 
-### Milestone: "Hello World" TUI
+- [x] **Widget Command System**
+  - [x] `datatui text` - text widget creation
+  - [x] `datatui list` - list widget creation
+  - [x] Widget storage (HashMap<WidgetId, Widget>)
+  - [x] Widget reference custom values (WidgetRef)
+  - [ ] Basic layout system (single pane)  # TODO: Implement multi-widget layout rendering
+
+### Milestone: "Hello World" TUI ✅ COMPLETED
 ```nu
 datatui init
 let text_widget = datatui text --content "Hello World!"
@@ -41,45 +70,46 @@ datatui terminate
 ## Phase 2: Core Widgets 📦
 
 ### Essential Widgets
-- [ ] **List Widget**
-  - [ ] Basic list rendering
-  - [ ] Selection/highlighting
-  - [ ] Scroll state management
-  - [ ] Item formatting from Nu data
-  - [ ] Keyboard navigation (j/k, arrows)
+- [x] **List Widget** (Basic implementation)
+  - [x] Basic list rendering
+  - [x] Selection/highlighting (basic support)
+  - [ ] Scroll state management  # TODO: Implement proper StatefulWidget scrolling
+  - [x] Item formatting from Nu data
+  - [ ] Keyboard navigation (j/k, arrows)  # TODO: Add interactive keyboard navigation
 
-- [ ] **Text Widget Enhancement**
-  - [ ] Scrollable text content
-  - [ ] Line wrapping support
-  - [ ] Basic styling (bold, colors)
-  - [ ] Search within text
+- [x] **Text Widget Enhancement** (Basic implementation)
+  - [ ] Scrollable text content  # TODO: Implement text scrolling with StatefulWidget
+  - [x] Line wrapping support
+  - [ ] Basic styling (bold, colors)  # TODO: Add text styling options
+  - [ ] Search within text  # TODO: Add text search functionality
 
-- [ ] **Layout System**
-  - [ ] Horizontal/vertical splits
-  - [ ] Percentage and fixed sizing
-  - [ ] Nested layouts
-  - [ ] Dynamic layout recalculation
+- [ ] **Layout System**  # TODO: CRITICAL - Major feature needed for File Browser milestone
+  - [ ] Horizontal/vertical splits  # Parse layout records from Nu
+  - [ ] Percentage and fixed sizing  # Support "30%", "*", and fixed numbers
+  - [ ] Nested layouts  # Allow layouts within layouts
+  - [ ] Dynamic layout recalculation  # Recalculate on terminal resize
+  - [ ] Multi-widget rendering  # Render layout with multiple WidgetRefs
 
-### Milestone: File Browser
+### Milestone: File Browser  # TODO: Requires layout system to be implemented first
 Basic file browser with list + preview pane (see EXAMPLES.md)
 
-## Phase 3: Advanced Widgets 🚀
+## Phase 3: Advanced Widgets 🚀  # TODO: Next major phase after Phase 2 layout system
 
 ### Enhanced Widgets
-- [ ] **Table Widget**
+- [ ] **Table Widget**  # TODO: High priority for nucess and jjiles
   - [ ] Column-based data display
   - [ ] Column headers and sizing
   - [ ] Row selection
   - [ ] Basic sorting capability
   - [ ] Column alignment
 
-- [ ] **Menu Widget**
+- [ ] **Menu Widget**  # TODO: Medium priority
   - [ ] Horizontal/vertical menu bars
   - [ ] Submenu support
   - [ ] Menu item callbacks
   - [ ] Keyboard shortcuts display
 
-- [ ] **Input Widgets**
+- [ ] **Input Widgets**  # TODO: Medium priority for interactive applications
   - [ ] Text input field
   - [ ] Multi-line text area
   - [ ] Input validation
@@ -88,26 +118,53 @@ Basic file browser with list + preview pane (see EXAMPLES.md)
 ### Milestone: Process Manager (nucess)
 Multi-pane process management interface (see EXAMPLES.md)
 
+## Phase 3.5: Streaming Data (🌊 Major Architectural Feature)
+
+### Streaming Data System  # TODO: Critical for real-time applications like nucess
+- [ ] **Stream Command**  # `datatui stream {|| command}` - execute closures and return StreamId
+  - [ ] StreamId custom value type
+  - [ ] Closure execution and data capture
+  - [ ] Automatic cleanup on StreamId drop
+  - [ ] Stream refresh by replacement
+
+- [ ] **Streaming Widgets**  # Widgets that consume live data streams
+  - [ ] `datatui streaming-text` - Live log viewer with auto-scroll
+  - [ ] `datatui streaming-table` - Live data table with refresh rates
+  - [ ] Stream integration with existing widgets
+  - [ ] Buffer management and memory limits
+
+- [ ] **Stream Management**  # Handle multiple concurrent streams
+  - [ ] Stream lifecycle management
+  - [ ] Memory-efficient streaming
+  - [ ] Stream error handling and recovery
+  - [ ] Rate limiting and backpressure
+
 ## Phase 4: Advanced Features ⚡
 
 ### Performance & Polish
-- [ ] **Optimization**
+- [ ] **Optimization**  # TODO: Important for large datasets in jjiles
   - [ ] Efficient state diff detection
   - [ ] Widget render caching
-  - [ ] Large dataset handling (virtual scrolling)
+  - [ ] Large dataset handling (virtual scrolling)  # Critical for jjiles with many commits
   - [ ] Memory usage optimization
 
-- [ ] **Advanced Event System**
-  - [ ] Mouse support (optional)
-  - [ ] Timer/interval events
+- [ ] **Advanced Event System**  # TODO: Enhance interactivity
+  - [ ] Mouse support (optional)  # Nice-to-have for clicking and scrolling
+  - [ ] Timer/interval events  # For auto-refresh and animations
   - [ ] Custom event types
   - [ ] Event batching/debouncing
 
-- [ ] **Styling System**
+- [ ] **Styling System**  # TODO: Medium priority for polish
   - [ ] Theme support
   - [ ] Color schemes
   - [ ] Border styles
   - [ ] Custom widget styling
+
+- [ ] **Error Handling & Robustness**  # TODO: Critical for production use
+  - [ ] Panic handlers with terminal cleanup  # Prevent terminal corruption
+  - [ ] Signal handling (SIGINT, SIGTERM)  # Graceful shutdown
+  - [ ] Plugin crash recovery  # Don't crash Nu shell
+  - [ ] Better error messages with context
 
 ### Milestone: Real-time Monitor
 Live updating dashboard with multiple data sources (see EXAMPLES.md)
