@@ -4,15 +4,16 @@ use nu_protocol::{
 };
 use ratatui::{
     backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
     style::Stylize,
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Terminal,
+    Terminal, Frame,
 };
 use std::io;
 
 use crate::plugin::{DatatuiPlugin, LabeledResult};
 use crate::terminal::{collect_events, events_to_nu_values, init_terminal, restore_terminal};
-use crate::widgets::{WidgetRef, WidgetId, WidgetConfig};
+use crate::widgets::{WidgetRef, WidgetId, WidgetConfig, LayoutConfig};
 
 static mut WIDGET_COUNTER: WidgetId = 0;
 
@@ -334,21 +335,19 @@ impl PluginCommand for RenderCommand {
         call: &EvaluatedCall,
         input: PipelineData,
     ) -> LabeledResult<PipelineData> {
-        // For single widget rendering, handle directly
         match input {
             PipelineData::Value(Value::Custom { val, .. }, _) => {
-                // Try to downcast to WidgetRef
+                // Single widget rendering
                 if let Some(widget_ref) = val.as_any().downcast_ref::<WidgetRef>() {
                     render_single_widget(plugin, widget_ref)?;
                     return Ok(PipelineData::empty());
                 }
             }
             PipelineData::Value(Value::Record { val, .. }, _) => {
-                // Handle layout record (for future implementation)
-                let _layout_record = val;
-                // TODO: Parse layout configuration and render multiple widgets
-                return Err(LabeledError::new("Layout rendering not yet implemented")
-                    .with_label("here", call.head));
+                // Layout rendering with multiple widgets
+                let layout_config = LayoutConfig::from_nu_record(&val)?;
+                render_layout(plugin, &layout_config)?;
+                return Ok(PipelineData::empty());
             }
             _ => {}
         }
@@ -409,4 +408,101 @@ fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Resul
     .map_err(|e| LabeledError::new(format!("Failed to render widget: {}", e)))?;
 
     Ok(())
+}
+
+/// Render a layout with multiple widgets to the terminal
+fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result<(), LabeledError> {
+    // Get widget configurations
+    let widgets = plugin.widgets.lock().unwrap();
+
+    // Initialize terminal
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = Terminal::new(backend)
+        .map_err(|e| LabeledError::new(format!("Failed to create terminal: {}", e)))?;
+
+    // Render the layout
+    terminal.draw(|frame| {
+        render_layout_frame(frame, layout_config, &widgets)
+    })
+    .map_err(|e| LabeledError::new(format!("Failed to render layout: {}", e)))?;
+
+    Ok(())
+}
+
+/// Render layout within a frame
+fn render_layout_frame(
+    frame: &mut Frame,
+    layout_config: &LayoutConfig,
+    widgets: &std::collections::HashMap<WidgetId, WidgetConfig>,
+) {
+    let total_area = frame.area();
+
+    // Convert direction
+    let direction = match layout_config.direction.as_str() {
+        "horizontal" => Direction::Horizontal,
+        "vertical" => Direction::Vertical,
+        _ => Direction::Vertical, // default
+    };
+
+    // Convert sizes to constraints
+    let constraints: Vec<Constraint> = layout_config
+        .panes
+        .iter()
+        .map(|pane| pane.size.to_constraint())
+        .collect();
+
+    // Create layout
+    let layout = Layout::default()
+        .direction(direction)
+        .constraints(constraints);
+
+    let areas = layout.split(total_area);
+
+    // Render each widget in its area
+    for (i, pane) in layout_config.panes.iter().enumerate() {
+        if i >= areas.len() {
+            continue;
+        }
+
+        let area = areas[i];
+
+        if let Some(widget_config) = widgets.get(&pane.widget.id) {
+            render_widget_in_area(frame, widget_config, area);
+        }
+    }
+}
+
+/// Render a single widget configuration in a specific area
+fn render_widget_in_area(
+    frame: &mut Frame,
+    widget_config: &WidgetConfig,
+    area: ratatui::layout::Rect,
+) {
+    match widget_config {
+        WidgetConfig::List { items, selected, title, .. } => {
+            let list_items: Vec<ListItem> = items
+                .iter()
+                .map(|item| ListItem::new(item.clone()))
+                .collect();
+
+            let mut list = List::new(list_items)
+                .highlight_style(ratatui::style::Style::default().reversed());
+
+            if let Some(title) = title {
+                list = list.block(Block::default().borders(Borders::ALL).title(title.clone()));
+            }
+
+            // TODO: Handle selection state properly with StatefulWidget
+            frame.render_widget(list, area);
+        }
+        WidgetConfig::Text { content, title, .. } => {
+            let mut paragraph = Paragraph::new(content.clone());
+
+            if let Some(title) = title {
+                paragraph = paragraph.block(Block::default().borders(Borders::ALL).title(title.clone()));
+            }
+
+            frame.render_widget(paragraph, area);
+        }
+    }
 }
