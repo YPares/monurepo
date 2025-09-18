@@ -1,0 +1,20 @@
+[package]
+name = "nu_plugin_datatui"
+version = "0.1.0"
+description = "Nushell plugin for building interactive TUIs with ratatui"
+authors = ["Yves Pares <yves.pares@gmail.com>"]
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+nu-plugin = "0.106.1"
+nu-protocol = "0.106.1"
+ratatui = "0.29.*"
+crossterm = "0.28.*"
+serde = { version = "1.0", features = ["derive"] }
+typetag = "0.2"
+miette = "7.0"
+
+[[bin]]
+name = "nu_plugin_datatui"
+path = "src/main.rs"
