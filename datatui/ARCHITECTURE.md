@@ -7,9 +7,9 @@
 │   Nushell       │◄────────────────┤   datatui        │
 │   Script        │                 │   Plugin         │
 │                 │                 │                  │
-│ • State mgmt    │    State +      │ • Terminal       │
-│ • Event logic   │    UI Desc      │   control        │
-│ • Data proc.    │                 │ • Ratatui        │ 
+│ • State mgmt    │                 │ • Terminal       │
+│ • Event logic   │    State +      │   control        │
+│ • Data proc.    │    UI Desc      │ • Ratatui        │
 │ • Closures      │────────────────►│   rendering      │
 └─────────────────┘                 │ • Event loop     │
                                     └──────────────────┘
@@ -23,10 +23,10 @@
   │                                                     │
   │  1. datatui init (setup terminal)                   │
   │  2. loop {                                          │
-  │       let events = datatui events  # Get events    │
-  │       $state = process_events($state, $events)     │
+  │       let events = datatui events  # Get events     │
+  │       $state = process_events($state, $events)      │
   │       let widgets = create_widgets($state)          │
-  │       {layout: ...} | datatui render               │
+  │       {layout: ...} | datatui render                │
   │     }                                               │
   │  3. datatui terminate (cleanup terminal)            │
   └─────────────────────────────────────────────────────┘
@@ -37,10 +37,10 @@
   │               datatui Plugin                        │
   │                                                     │
   │  • Terminal management (init/terminate)             │
-  │  • Event collection (crossterm::event::read)       │
+  │  • Event collection (crossterm::event::read)        │
   │  • Widget storage (HashMap<WidgetId, Widget>)       │
   │  • Rendering (ratatui draw calls)                   │
-  │  • No application state - Nu manages everything    │
+  │  • No application state - Nu manages everything     │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -131,33 +131,20 @@ let search_box = datatui textarea --placeholder "Search..."
     ]
   }
 } | datatui render
-  ui: {
+  # Create widgets using datatui commands
+  let file_list = datatui list --items ["file1.txt", "file2.txt", "document.txt"] --selected 3 --title "Files"
+  let preview = datatui text --content "Document contents here..." --title "Preview"
+
+  # Layout with widgets
+  {
     layout: {
-      direction: horizontal
+      direction: "horizontal"
       panes: [
-        {
-          widget: {
-            type: "list"
-            id: "file_list"      # Required for event targeting
-            items: ["file1.txt", "file2.txt", "document.txt"]
-            selected: 3
-            scrollable: true
-            title: "Files"
-          }
-          size: "30%"
-        }
-        {
-          widget: {
-            type: "text"
-            content: "Document contents here..."
-            wrap: true
-            title: "Preview"
-          }
-          size: "*"
-        }
-    ]
+        {widget: $file_list, size: "30%"}
+        {widget: $preview, size: "*"}
+      ]
+    }
   }
-}
 ```
 
 ### Example Application Loop (Nu)
@@ -215,7 +202,7 @@ loop {
   # Render layout
   {
     layout: {
-      direction: horizontal
+      direction: "horizontal"
       panes: [
         {widget: $file_list, size: "30%"}
         {widget: $preview_text, size: "*"}
@@ -228,49 +215,7 @@ loop {
 datatui terminate
 ```
 
-## 🎉 Current Implementation Status
-
-### ✅ **COMPLETED FEATURES**
-
-#### **Session-Based Terminal Management**
-- **Problem**: Original design re-created Terminal objects for every render call
-- **Solution**: Plugin now stores a single `Terminal<CrosstermBackend<Stdout>>` instance
-- **Benefits**: Better performance, proper lifecycle management, resource efficiency
-
-#### **Multi-Widget Layout System**
-- **Complete layout rendering** with horizontal/vertical splits
-- **Size constraints**: Percentage ("30%"), Fill ("*"), and Fixed (20) sizing
-- **Layout parsing** from Nu records to ratatui Layout objects
-- **Multi-widget support** in single render call
-
-#### **Core Infrastructure**
-- ✅ Nushell plugin integration with nu-plugin 0.106.1
-- ✅ Widget storage with thread-safe HashMap<WidgetId, WidgetConfig>
-- ✅ Custom values for WidgetRef communication
-- ✅ Event collection (keyboard, mouse, resize, paste)
-- ✅ Text and List widgets with basic functionality
-
-### 🚧 **HIGH PRIORITY TODO**
-1. **StatefulWidget Integration** - For proper scrolling and selection
-2. **Table Widget** - Essential for jjiles and nucess applications
-3. **Interactive Event Loop** - Keyboard navigation within widgets
-
-### **Actual Plugin Structure** (as implemented)
-```rust
-pub struct DatatuiPlugin {
-    pub widgets: Arc<Mutex<HashMap<WidgetId, WidgetConfig>>>,
-    pub terminal: Arc<Mutex<Option<Terminal<CrosstermBackend<Stdout>>>>>,
-}
-
-// Efficient terminal lifecycle:
-// 1. `datatui init` creates and stores terminal
-// 2. `datatui render` reuses stored terminal
-// 3. `datatui terminate` cleans up terminal
-```
-
 ## Plugin Implementation Details
-
-**Refer to the most recent docs of the crates to use, either via https://docs.rs or by using the context7 MCP tools**
 
 ### Simple Plugin Structure (using nu-plugin crate)
 ```rust

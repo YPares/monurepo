@@ -42,9 +42,18 @@ impl Plugin for DatatuiPlugin {
     fn custom_value_dropped(
         &self,
         _engine: &EngineInterface,
-        _custom_value: Box<dyn CustomValue>,
+        custom_value: Box<dyn CustomValue>,
     ) -> LabeledResult<()> {
         // Handle cleanup when widget references are dropped
+        if let Some(widget_ref) = custom_value.as_any().downcast_ref::<crate::widgets::WidgetRef>() {
+            // Remove the widget from storage when its reference is dropped
+            let mut widgets = self.widgets.lock().unwrap();
+            if let Some(_widget_config) = widgets.remove(&widget_ref.id) {
+                // Widget successfully removed from storage
+                #[cfg(debug_assertions)]
+                eprintln!("DEBUG: Cleaned up widget with ID: {}", widget_ref.id);
+            }
+        }
         Ok(())
     }
 }
