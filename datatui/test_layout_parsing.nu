@@ -56,9 +56,9 @@ let vertical_layout = {
 }
 
 print "   ✓ Vertical layout with mixed sizes created"
-print $"   Header size: 3 (fixed)"
-print $"   Content size: * (fill)"
-print $"   Footer size: 10% (percentage)"
+print "   Header size: 3 (fixed)"
+print "   Content size: * (fill)"
+print "   Footer size: 10% (percentage)"
 print ""
 
 # Test 4: Try to render layout (should parse but fail on terminal)

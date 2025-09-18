@@ -2,14 +2,25 @@ use nu_plugin::{EngineInterface, Plugin, PluginCommand};
 use nu_protocol::{LabeledError, CustomValue};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use ratatui::{Terminal, backend::CrosstermBackend};
+use std::io::Stdout;
 use crate::commands::{InitCommand, EventsCommand, RenderCommand, TerminateCommand, ListCommand, TextCommand};
 use crate::widgets::{WidgetId, WidgetConfig};
 
 pub type LabeledResult<T> = std::result::Result<T, LabeledError>;
 
-#[derive(Default)]
 pub struct DatatuiPlugin {
     pub widgets: Arc<Mutex<HashMap<WidgetId, WidgetConfig>>>,
+    pub terminal: Arc<Mutex<Option<Terminal<CrosstermBackend<Stdout>>>>>,
+}
+
+impl Default for DatatuiPlugin {
+    fn default() -> Self {
+        Self {
+            widgets: Arc::new(Mutex::new(HashMap::new())),
+            terminal: Arc::new(Mutex::new(None)),
+        }
+    }
 }
 
 impl Plugin for DatatuiPlugin {

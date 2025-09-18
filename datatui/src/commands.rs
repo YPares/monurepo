@@ -3,13 +3,11 @@ use nu_protocol::{
     LabeledError, PipelineData, Signature, SyntaxShape, Type, Value, Category,
 };
 use ratatui::{
-    backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::Stylize,
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Terminal, Frame,
+    Frame,
 };
-use std::io;
 
 use crate::plugin::{DatatuiPlugin, LabeledResult};
 use crate::terminal::{collect_events, events_to_nu_values, init_terminal, restore_terminal};
@@ -47,18 +45,20 @@ impl PluginCommand for InitCommand {
 
     fn run(
         &self,
-        _plugin: &Self::Plugin,
+        plugin: &Self::Plugin,
         _engine: &EngineInterface,
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
-        let _terminal = init_terminal().map_err(|e| {
+        let terminal = init_terminal().map_err(|e| {
             LabeledError::new(format!("Failed to initialize terminal: {}", e))
                 .with_label("here", call.head)
         })?;
 
-        // Note: We can't actually store the terminal in the plugin due to mutability constraints
-        // For now, we'll just initialize and let each command manage its own terminal access
+        // Store the terminal in the plugin state
+        let mut terminal_guard = plugin.terminal.lock().unwrap();
+        *terminal_guard = Some(terminal);
+
         Ok(PipelineData::empty())
     }
 }
@@ -84,11 +84,17 @@ impl PluginCommand for TerminateCommand {
 
     fn run(
         &self,
-        _plugin: &Self::Plugin,
+        plugin: &Self::Plugin,
         _engine: &EngineInterface,
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
+        // Clear the stored terminal first
+        {
+            let mut terminal_guard = plugin.terminal.lock().unwrap();
+            *terminal_guard = None;
+        }
+
         restore_terminal().map_err(|e| {
             LabeledError::new(format!("Failed to restore terminal: {}", e))
                 .with_label("here", call.head)
@@ -364,10 +370,10 @@ fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Resul
     let widget_config = widgets.get(&widget_ref.id)
         .ok_or_else(|| LabeledError::new(format!("Widget with ID {} not found", widget_ref.id)))?;
 
-    // Initialize terminal
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = Terminal::new(backend)
-        .map_err(|e| LabeledError::new(format!("Failed to create terminal: {}", e)))?;
+    // Get the stored terminal
+    let mut terminal_guard = plugin.terminal.lock().unwrap();
+    let terminal = terminal_guard.as_mut()
+        .ok_or_else(|| LabeledError::new("Terminal not initialized. Run 'datatui init' first."))?;
 
     // Render the widget
     terminal.draw(|frame| {
@@ -415,10 +421,10 @@ fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result
     // Get widget configurations
     let widgets = plugin.widgets.lock().unwrap();
 
-    // Initialize terminal
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = Terminal::new(backend)
-        .map_err(|e| LabeledError::new(format!("Failed to create terminal: {}", e)))?;
+    // Get the stored terminal
+    let mut terminal_guard = plugin.terminal.lock().unwrap();
+    let terminal = terminal_guard.as_mut()
+        .ok_or_else(|| LabeledError::new("Terminal not initialized. Run 'datatui init' first."))?;
 
     // Render the layout
     terminal.draw(|frame| {
