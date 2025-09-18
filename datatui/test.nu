@@ -6,7 +6,6 @@
 # In production, users would run: plugin add ./target/release/nu_plugin_datatui
 
 plugin add ./target/release/nu_plugin_datatui
-plugin use datatui
 
 print "Testing datatui plugin..."
 
