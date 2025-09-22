@@ -10,7 +10,7 @@ use ratatui::{
 };
 
 use crate::plugin::{DatatuiPlugin, LabeledResult};
-use crate::terminal::{collect_events, events_to_nu_values, init_terminal, restore_terminal};
+use crate::terminal::{crossterm_event_to_nu_value, init_terminal, restore_terminal};
 use crate::widgets::{WidgetRef, WidgetId, WidgetConfig, LayoutConfig};
 
 static mut WIDGET_COUNTER: WidgetId = 0;
@@ -50,6 +50,9 @@ impl PluginCommand for InitCommand {
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
+        // #[cfg(debug_assertions)]
+        // eprintln!("init: starting");
+
         let terminal = init_terminal().map_err(|e| {
             LabeledError::new(format!("Failed to initialize terminal: {}", e))
                 .with_label("here", call.head)
@@ -58,6 +61,9 @@ impl PluginCommand for InitCommand {
         // Store the terminal in the plugin state
         let mut terminal_guard = plugin.terminal.lock().unwrap();
         *terminal_guard = Some(terminal);
+
+        // #[cfg(debug_assertions)]
+        // eprintln!("init: done");
 
         Ok(PipelineData::empty())
     }
@@ -128,23 +134,47 @@ impl PluginCommand for EventsCommand {
     }
 
     fn description(&self) -> &str {
-        "Get terminal events (blocking until events are available)"
+        "Get terminal events"
     }
 
     fn run(
         &self,
         _plugin: &Self::Plugin,
-        _engine: &EngineInterface,
+        engine: &EngineInterface,
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
-        let events = collect_events().map_err(|e| {
-            LabeledError::new(format!("Failed to collect events: {}", e))
-                .with_label("here", call.head)
-        })?;
+        use crossterm::event;
+        use std::time::Duration;
 
-        let nu_events = events_to_nu_values(events, call.head);
-        Ok(PipelineData::Value(nu_events, None))
+        let _guard = engine.enter_foreground()?;
+
+        // Get timeout parameter, default to 100ms
+        let timeout_ms = call
+            .get_flag("timeout")?
+            .map(|v: Value| {
+                v.as_duration()
+                    .map_err(|e| LabeledError::new(format!("Invalid timeout: {}", e)))
+                    .map(|d| (d / 1_000_000) as u64) // Convert nanoseconds to milliseconds
+            })
+            .transpose()?
+            .unwrap_or(100);
+
+        let mut events = Vec::new();
+
+        if event::poll(Duration::from_millis(timeout_ms)).map_err(|e| {
+            LabeledError::new(format!("Failed to poll events: {}", e))
+                .with_label("here", call.head)
+        })? {
+            let event = event::read().map_err(|e| {
+                LabeledError::new(format!("Failed to read event: {}", e))
+                    .with_label("here", call.head)
+            })?;
+
+            events.push(crossterm_event_to_nu_value(event, call.head));
+        }
+
+        Ok(PipelineData::Value(Value::list(events, call.head), None))
     }
 }
 
@@ -205,7 +235,7 @@ impl PluginCommand for ListCommand {
                     .map_err(|e| LabeledError::new(format!("Invalid items: {}", e)))?;
                 Ok(list
                     .iter()
-                    .map(|item| item.coerce_string().unwrap_or_else(|_| "".to_string()))
+                    .map(|item| item.coerce_string().unwrap_or_else(|e| e.to_string()))
                     .collect())
             })
             .transpose()?
@@ -221,7 +251,7 @@ impl PluginCommand for ListCommand {
 
         let title: Option<String> = call
             .get_flag("title")?
-            .map(|v: Value| v.coerce_string().unwrap_or_else(|_| "".to_string()));
+            .map(|v: Value| v.coerce_string().unwrap_or_else(|e| e.to_string()));
 
         // Store widget configuration
         let widget_config = WidgetConfig::List {
@@ -285,7 +315,7 @@ impl PluginCommand for TextCommand {
 
         let content: String = call
             .get_flag("content")?
-            .map(|v: Value| v.coerce_string().unwrap_or_else(|_| "".to_string()))
+            .map(|v: Value| v.coerce_string().unwrap_or_else(|e| e.to_string()))
             .unwrap_or_default();
 
         let wrap = call.has_flag("wrap")?;
@@ -293,7 +323,7 @@ impl PluginCommand for TextCommand {
 
         let title: Option<String> = call
             .get_flag("title")?
-            .map(|v: Value| v.coerce_string().unwrap_or_else(|_| "".to_string()));
+            .map(|v: Value| v.coerce_string().unwrap_or_else(|e| e.to_string()));
 
         // Store widget configuration
         let widget_config = WidgetConfig::Text {
@@ -485,7 +515,7 @@ fn render_widget_in_area(
     area: ratatui::layout::Rect,
 ) {
     match widget_config {
-        WidgetConfig::List { items, selected, title, .. } => {
+        WidgetConfig::List { items, title, .. } => {
             let list_items: Vec<ListItem> = items
                 .iter()
                 .map(|item| ListItem::new(item.clone()))
