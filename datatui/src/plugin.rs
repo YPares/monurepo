@@ -50,8 +50,8 @@ impl Plugin for DatatuiPlugin {
             let mut widgets = self.widgets.lock().unwrap();
             if let Some(_widget_config) = widgets.remove(&widget_ref.id) {
                 // Widget successfully removed from storage
-                #[cfg(debug_assertions)]
-                eprintln!("DEBUG: Cleaned up widget with ID: {}", widget_ref.id);
+                // #[cfg(debug_assertions)]
+                // eprintln!("DEBUG: Cleaned up widget with ID: {}", widget_ref.id);
             }
         }
         Ok(())
