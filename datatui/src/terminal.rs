@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent},
+    event::{Event, KeyCode, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -7,13 +7,14 @@ use miette::{IntoDiagnostic, Result};
 use nu_protocol::{Span, Value};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Stdout};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type DatatuiTerminal = Terminal<CrosstermBackend<Stdout>>;
 
 /// Initialize terminal for TUI mode
 pub fn init_terminal() -> Result<DatatuiTerminal> {
     enable_raw_mode().into_diagnostic()?;
+
     io::stdout()
         .execute(EnterAlternateScreen)
         .into_diagnostic()?;
@@ -33,71 +34,9 @@ pub fn restore_terminal() -> Result<()> {
     Ok(())
 }
 
-/// Event types that can be received from the terminal
-#[derive(Debug, Clone)]
-pub enum DatatuiEvent {
-    Key(KeyEvent),
-    Mouse(MouseEvent),
-    Resize(u16, u16),
-    Paste(String),
-}
-
-/// Collect events from the terminal
-pub fn collect_events() -> Result<Vec<DatatuiEvent>> {
-    let mut events = Vec::new();
-
-    // Block for the first event
-    match event::read().into_diagnostic()? {
-        Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-            events.push(DatatuiEvent::Key(key_event));
-        }
-        Event::Mouse(mouse_event) => {
-            events.push(DatatuiEvent::Mouse(mouse_event));
-        }
-        Event::Resize(w, h) => {
-            events.push(DatatuiEvent::Resize(w, h));
-        }
-        Event::Paste(text) => {
-            events.push(DatatuiEvent::Paste(text));
-        }
-        _ => {} // Ignore other events
-    }
-
-    // Collect any additional events available immediately
-    while event::poll(Duration::from_millis(0)).into_diagnostic()? {
-        match event::read().into_diagnostic()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                events.push(DatatuiEvent::Key(key_event));
-            }
-            Event::Mouse(mouse_event) => {
-                events.push(DatatuiEvent::Mouse(mouse_event));
-            }
-            Event::Resize(w, h) => {
-                events.push(DatatuiEvent::Resize(w, h));
-            }
-            Event::Paste(text) => {
-                events.push(DatatuiEvent::Paste(text));
-            }
-            _ => {} // Ignore other events
-        }
-    }
-
-    Ok(events)
-}
-
-/// Convert terminal events to Nu values
-pub fn events_to_nu_values(events: Vec<DatatuiEvent>, span: Span) -> Value {
-    let nu_events = events
-        .into_iter()
-        .map(|event| event_to_nu_value(event, span))
-        .collect();
-
-    Value::list(nu_events, span)
-}
-
-fn event_to_nu_value(event: DatatuiEvent, span: Span) -> Value {
+pub fn crossterm_event_to_nu_value(event: Event, span: Span) -> Value {
     match event {
-        DatatuiEvent::Key(key_event) => {
+        Event::Key(key_event) => {
             let record = vec![
                 ("type".into(), Value::string("key", span)),
                 ("key".into(), Value::string(format_key_code(key_event.code), span)),
@@ -107,7 +46,7 @@ fn event_to_nu_value(event: DatatuiEvent, span: Span) -> Value {
 
             Value::record(record.into_iter().collect(), span)
         }
-        DatatuiEvent::Mouse(mouse_event) => {
+        Event::Mouse(mouse_event) => {
             let record = vec![
                 ("type".into(), Value::string("mouse", span)),
                 ("x".into(), Value::int(mouse_event.column as i64, span)),
@@ -118,7 +57,7 @@ fn event_to_nu_value(event: DatatuiEvent, span: Span) -> Value {
 
             Value::record(record.into_iter().collect(), span)
         }
-        DatatuiEvent::Resize(w, h) => {
+        Event::Resize(w, h) => {
             let record = vec![
                 ("type".into(), Value::string("resize", span)),
                 ("width".into(), Value::int(w as i64, span)),
@@ -128,13 +67,21 @@ fn event_to_nu_value(event: DatatuiEvent, span: Span) -> Value {
 
             Value::record(record.into_iter().collect(), span)
         }
-        DatatuiEvent::Paste(text) => {
+        Event::Paste(text) => {
             let record = vec![
                 ("type".into(), Value::string("paste", span)),
                 ("text".into(), Value::string(text, span)),
                 ("timestamp".into(), get_timestamp(span)),
             ];
 
+            Value::record(record.into_iter().collect(), span)
+        }
+        _ => {
+            // For any other event types, create a generic record
+            let record = vec![
+                ("type".into(), Value::string("unknown", span)),
+                ("timestamp".into(), get_timestamp(span)),
+            ];
             Value::record(record.into_iter().collect(), span)
         }
     }
