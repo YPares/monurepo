@@ -1,5 +1,6 @@
 use nu_protocol::{CustomValue, Span, Value, ShellError, LabeledError};
 use serde::{Serialize, Deserialize};
+use ratatui::widgets::{List, Paragraph};
 
 pub type WidgetId = u64;
 
@@ -56,21 +57,20 @@ impl nu_protocol::FromValue for WidgetRef {
     }
 }
 
-/// Configuration for various widget types
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum WidgetConfig {
-    List {
-        items: Vec<String>,
-        selected: Option<usize>,
-        scrollable: bool,
-        title: Option<String>,
-    },
-    Text {
-        content: String,
-        wrap: bool,
-        scrollable: bool,
-        title: Option<String>,
-    },
+/// Direct storage of ratatui widgets
+#[derive(Debug, Clone)]
+pub enum StoredWidget {
+    List(List<'static>),
+    Paragraph(Paragraph<'static>),
+}
+
+impl StoredWidget {
+    pub fn render(&self, frame: &mut ratatui::Frame, area: ratatui::layout::Rect) {
+        match self {
+            StoredWidget::List(list) => frame.render_widget(list.clone(), area),
+            StoredWidget::Paragraph(paragraph) => frame.render_widget(paragraph.clone(), area),
+        }
+    }
 }
 
 /// Layout configuration for rendering

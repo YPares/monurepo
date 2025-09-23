@@ -5,12 +5,12 @@ use std::sync::{Arc, Mutex};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io::Stdout;
 use crate::commands::{InitCommand, EventsCommand, RenderCommand, TerminateCommand, ListCommand, TextCommand};
-use crate::widgets::{WidgetId, WidgetConfig};
+use crate::widgets::{WidgetId, StoredWidget};
 
 pub type LabeledResult<T> = std::result::Result<T, LabeledError>;
 
 pub struct DatatuiPlugin {
-    pub widgets: Arc<Mutex<HashMap<WidgetId, WidgetConfig>>>,
+    pub widgets: Arc<Mutex<HashMap<WidgetId, StoredWidget>>>,
     pub terminal: Arc<Mutex<Option<Terminal<CrosstermBackend<Stdout>>>>>,
 }
 
@@ -48,7 +48,7 @@ impl Plugin for DatatuiPlugin {
         if let Some(widget_ref) = custom_value.as_any().downcast_ref::<crate::widgets::WidgetRef>() {
             // Remove the widget from storage when its reference is dropped
             let mut widgets = self.widgets.lock().unwrap();
-            if let Some(_widget_config) = widgets.remove(&widget_ref.id) {
+            if let Some(_stored_widget) = widgets.remove(&widget_ref.id) {
                 // Widget successfully removed from storage
                 // #[cfg(debug_assertions)]
                 // eprintln!("DEBUG: Cleaned up widget with ID: {}", widget_ref.id);
