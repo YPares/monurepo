@@ -131,8 +131,12 @@ export def --wrapped kick [
     # A revision to rebase
   --message (-m): string
     # Optionally, change the message of the revision to rebase at the same time
+  --bookmark (-b): string@"complete local-bookmarks"
+    # Optionally, a bookmark to rebase after (-A). If given, move the bookmark to
+    # the rebased revision
   ...rebase_args # Args to give to jj rebase
 ] {
+  std assert ($bookmark == null or $rebase_args == []) "--bookmark and rebase args cannot be given at the same time"
   atomic -n kick {
     let revision = if ($revision == "@") {
       ^jj new -A "@"
@@ -142,7 +146,12 @@ export def --wrapped kick [
     if ($message != null) {
       ^jj desc -m $message -r $revision
     }
-    ^jj rebase -r $revision ...$rebase_args
+    ^jj rebase -r $revision ...(
+      $rebase_args | default -e [-A $bookmark]
+    )
+    if $bookmark != null {
+      ^jj bookmark move $bookmark --to ($bookmark)+
+    }
   }
 }
 
