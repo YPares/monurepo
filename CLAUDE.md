@@ -1,0 +1,1 @@
+- NEVER make helper functions that just map another function onto a collection
