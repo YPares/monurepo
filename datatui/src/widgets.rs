@@ -58,17 +58,17 @@ impl nu_protocol::FromValue for WidgetRef {
 }
 
 /// Direct storage of ratatui widgets
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum StoredWidget {
     List(List<'static>),
     Paragraph(Paragraph<'static>),
 }
 
 impl StoredWidget {
-    pub fn render(&self, frame: &mut ratatui::Frame, area: ratatui::layout::Rect) {
+    pub fn render(self, frame: &mut ratatui::Frame, area: ratatui::layout::Rect) {
         match self {
-            StoredWidget::List(list) => frame.render_widget(list.clone(), area),
-            StoredWidget::Paragraph(paragraph) => frame.render_widget(paragraph.clone(), area),
+            StoredWidget::List(list) => frame.render_widget(list, area),
+            StoredWidget::Paragraph(paragraph) => frame.render_widget(paragraph, area),
         }
     }
 }
