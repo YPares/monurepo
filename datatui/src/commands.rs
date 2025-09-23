@@ -15,10 +15,10 @@ use crate::widgets::{WidgetRef, WidgetId, StoredWidget, LayoutConfig};
 
 static mut WIDGET_COUNTER: WidgetId = 0;
 
-fn next_widget_id() -> WidgetId {
+fn next_widget_ref() -> WidgetRef {
     unsafe {
         WIDGET_COUNTER += 1;
-        WIDGET_COUNTER
+        WidgetRef { id: WIDGET_COUNTER }
     }
 }
 
@@ -215,7 +215,7 @@ impl PluginCommand for ListCommand {
     }
 
     fn description(&self) -> &str {
-        "Create a list widget"
+        "Create a **single-use** list widget"
     }
 
     fn run(
@@ -225,7 +225,7 @@ impl PluginCommand for ListCommand {
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
-        let widget_id = next_widget_id();
+        let widget_ref = next_widget_ref();
 
         // Extract parameters
         let items: Vec<String> = call
@@ -260,16 +260,16 @@ impl PluginCommand for ListCommand {
             .collect();
 
         let mut list = List::new(list_items)
-            .highlight_style(ratatui::style::Style::default().reversed());
+            .highlight_style(ratatui::style::Style::default().reversed())
+            ;
 
         if let Some(title) = title {
             list = list.block(Block::default().borders(Borders::ALL).title(title));
         }
 
         // Store the ratatui widget in enum
-        plugin.widgets.lock().unwrap().insert(widget_id, StoredWidget::List(list));
+        plugin.widgets.lock().unwrap().insert(widget_ref.id, StoredWidget::List(list));
 
-        let widget_ref = WidgetRef { id: widget_id };
         Ok(PipelineData::Value(
             Value::custom(Box::new(widget_ref), call.head),
             None,
@@ -307,7 +307,7 @@ impl PluginCommand for TextCommand {
     }
 
     fn description(&self) -> &str {
-        "Create a text widget"
+        "Create a **single-use** text widget"
     }
 
     fn run(
@@ -317,7 +317,7 @@ impl PluginCommand for TextCommand {
         call: &EvaluatedCall,
         _input: PipelineData,
     ) -> LabeledResult<PipelineData> {
-        let widget_id = next_widget_id();
+        let widget_ref = next_widget_ref();
 
         let content: String = call
             .get_flag("content")?
@@ -339,9 +339,8 @@ impl PluginCommand for TextCommand {
         }
 
         // Store the ratatui widget in enum
-        plugin.widgets.lock().unwrap().insert(widget_id, StoredWidget::Paragraph(paragraph));
+        plugin.widgets.lock().unwrap().insert(widget_ref.id, StoredWidget::Paragraph(paragraph));
 
-        let widget_ref = WidgetRef { id: widget_id };
         Ok(PipelineData::Value(
             Value::custom(Box::new(widget_ref), call.head),
             None,
@@ -402,9 +401,9 @@ impl PluginCommand for RenderCommand {
 /// Render a single widget to the terminal
 fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Result<(), LabeledError> {
     // Get the stored widget
-    let widgets = plugin.widgets.lock().unwrap();
-    let stored_widget = widgets.get(&widget_ref.id)
-        .ok_or_else(|| LabeledError::new(format!("Widget with ID {} not found", widget_ref.id)))?;
+    let mut widgets = plugin.widgets.lock().unwrap();
+    let stored_widget = widgets.remove(&widget_ref.id)
+        .ok_or_else(|| LabeledError::new(format!("Widget with ID {} not found. Maybe it has already been rendered", widget_ref.id)))?;
 
     // Get the stored terminal
     let mut terminal_guard = plugin.terminal.lock().unwrap();
@@ -424,7 +423,7 @@ fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Resul
 /// Render a layout with multiple widgets to the terminal
 fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result<(), LabeledError> {
     // Get widget configurations
-    let widgets = plugin.widgets.lock().unwrap();
+    let mut widgets = plugin.widgets.lock().unwrap();
 
     // Get the stored terminal
     let mut terminal_guard = plugin.terminal.lock().unwrap();
@@ -433,7 +432,7 @@ fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result
 
     // Render the layout
     terminal.draw(|frame| {
-        render_layout_frame(frame, layout_config, &widgets)
+        render_layout_frame(frame, layout_config, &mut widgets)
     })
     .map_err(|e| LabeledError::new(format!("Failed to render layout: {}", e)))?;
 
@@ -444,7 +443,7 @@ fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result
 fn render_layout_frame(
     frame: &mut Frame,
     layout_config: &LayoutConfig,
-    widgets: &std::collections::HashMap<WidgetId, StoredWidget>,
+    widgets: &mut std::collections::HashMap<WidgetId, StoredWidget>,
 ) {
     let total_area = frame.area();
 
@@ -477,7 +476,7 @@ fn render_layout_frame(
 
         let area = areas[i];
 
-        if let Some(stored_widget) = widgets.get(&pane.widget.id) {
+        if let Some(stored_widget) = widgets.remove(&pane.widget.id) {
             stored_widget.render(frame, area);
         }
     }
