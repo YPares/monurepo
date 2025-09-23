@@ -11,7 +11,7 @@ use ratatui::{
 
 use crate::plugin::{DatatuiPlugin, LabeledResult};
 use crate::terminal::{crossterm_event_to_nu_value, init_terminal, restore_terminal};
-use crate::widgets::{WidgetRef, WidgetId, WidgetConfig, LayoutConfig};
+use crate::widgets::{WidgetRef, WidgetId, StoredWidget, LayoutConfig};
 
 static mut WIDGET_COUNTER: WidgetId = 0;
 
@@ -253,15 +253,21 @@ impl PluginCommand for ListCommand {
             .get_flag("title")?
             .map(|v: Value| v.coerce_string().unwrap_or_else(|e| e.to_string()));
 
-        // Store widget configuration
-        let widget_config = WidgetConfig::List {
-            items,
-            selected,
-            scrollable,
-            title,
-        };
+        // Create ratatui List widget directly
+        let list_items: Vec<ListItem> = items
+            .into_iter()
+            .map(|item| ListItem::new(item))
+            .collect();
 
-        plugin.widgets.lock().unwrap().insert(widget_id, widget_config);
+        let mut list = List::new(list_items)
+            .highlight_style(ratatui::style::Style::default().reversed());
+
+        if let Some(title) = title {
+            list = list.block(Block::default().borders(Borders::ALL).title(title));
+        }
+
+        // Store the ratatui widget in enum
+        plugin.widgets.lock().unwrap().insert(widget_id, StoredWidget::List(list));
 
         let widget_ref = WidgetRef { id: widget_id };
         Ok(PipelineData::Value(
@@ -325,15 +331,15 @@ impl PluginCommand for TextCommand {
             .get_flag("title")?
             .map(|v: Value| v.coerce_string().unwrap_or_else(|e| e.to_string()));
 
-        // Store widget configuration
-        let widget_config = WidgetConfig::Text {
-            content,
-            wrap,
-            scrollable,
-            title,
-        };
+        // Create ratatui Paragraph widget directly
+        let mut paragraph = Paragraph::new(content);
 
-        plugin.widgets.lock().unwrap().insert(widget_id, widget_config);
+        if let Some(title) = title {
+            paragraph = paragraph.block(Block::default().borders(Borders::ALL).title(title));
+        }
+
+        // Store the ratatui widget in enum
+        plugin.widgets.lock().unwrap().insert(widget_id, StoredWidget::Paragraph(paragraph));
 
         let widget_ref = WidgetRef { id: widget_id };
         Ok(PipelineData::Value(
@@ -395,9 +401,9 @@ impl PluginCommand for RenderCommand {
 
 /// Render a single widget to the terminal
 fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Result<(), LabeledError> {
-    // Get widget configuration
+    // Get the stored widget
     let widgets = plugin.widgets.lock().unwrap();
-    let widget_config = widgets.get(&widget_ref.id)
+    let stored_widget = widgets.get(&widget_ref.id)
         .ok_or_else(|| LabeledError::new(format!("Widget with ID {} not found", widget_ref.id)))?;
 
     // Get the stored terminal
@@ -408,38 +414,7 @@ fn render_single_widget(plugin: &DatatuiPlugin, widget_ref: &WidgetRef) -> Resul
     // Render the widget
     terminal.draw(|frame| {
         let size = frame.area();
-
-        match widget_config {
-            WidgetConfig::List { items, selected, title, .. } => {
-                let list_items: Vec<ListItem> = items
-                    .iter()
-                    .map(|item| ListItem::new(item.clone()))
-                    .collect();
-
-                let mut list = List::new(list_items)
-                    .highlight_style(ratatui::style::Style::default().reversed());
-
-                if let Some(title) = title {
-                    list = list.block(Block::default().borders(Borders::ALL).title(title.clone()));
-                }
-
-                // Handle selection state if needed
-                if selected.is_some() {
-                    // TODO: Use StatefulWidget for proper selection handling
-                }
-
-                frame.render_widget(list, size);
-            }
-            WidgetConfig::Text { content, title, .. } => {
-                let mut paragraph = Paragraph::new(content.clone());
-
-                if let Some(title) = title {
-                    paragraph = paragraph.block(Block::default().borders(Borders::ALL).title(title.clone()));
-                }
-
-                frame.render_widget(paragraph, size);
-            }
-        }
+        stored_widget.render(frame, size);
     })
     .map_err(|e| LabeledError::new(format!("Failed to render widget: {}", e)))?;
 
@@ -469,7 +444,7 @@ fn render_layout(plugin: &DatatuiPlugin, layout_config: &LayoutConfig) -> Result
 fn render_layout_frame(
     frame: &mut Frame,
     layout_config: &LayoutConfig,
-    widgets: &std::collections::HashMap<WidgetId, WidgetConfig>,
+    widgets: &std::collections::HashMap<WidgetId, StoredWidget>,
 ) {
     let total_area = frame.area();
 
@@ -502,43 +477,9 @@ fn render_layout_frame(
 
         let area = areas[i];
 
-        if let Some(widget_config) = widgets.get(&pane.widget.id) {
-            render_widget_in_area(frame, widget_config, area);
+        if let Some(stored_widget) = widgets.get(&pane.widget.id) {
+            stored_widget.render(frame, area);
         }
     }
 }
 
-/// Render a single widget configuration in a specific area
-fn render_widget_in_area(
-    frame: &mut Frame,
-    widget_config: &WidgetConfig,
-    area: ratatui::layout::Rect,
-) {
-    match widget_config {
-        WidgetConfig::List { items, title, .. } => {
-            let list_items: Vec<ListItem> = items
-                .iter()
-                .map(|item| ListItem::new(item.clone()))
-                .collect();
-
-            let mut list = List::new(list_items)
-                .highlight_style(ratatui::style::Style::default().reversed());
-
-            if let Some(title) = title {
-                list = list.block(Block::default().borders(Borders::ALL).title(title.clone()));
-            }
-
-            // TODO: Handle selection state properly with StatefulWidget
-            frame.render_widget(list, area);
-        }
-        WidgetConfig::Text { content, title, .. } => {
-            let mut paragraph = Paragraph::new(content.clone());
-
-            if let Some(title) = title {
-                paragraph = paragraph.block(Block::default().borders(Borders::ALL).title(title.clone()));
-            }
-
-            frame.render_widget(paragraph, area);
-        }
-    }
-}
