@@ -401,7 +401,7 @@ export def --wrapped main [
       refresh-preview
     ]
     load: [
-      (cmd -c transform on-load-finished $state_file)
+      (cmd -c transform on-load-finished $state_file "{n}")
       $"rebind\(($all_move_keys))"
     ]
     
