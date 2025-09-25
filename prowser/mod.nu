@@ -448,8 +448,8 @@ export def default-keybindings [
     [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right --reset')]
     [alt         char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
     [alt         char_z         (cmd $'($prefix)reset')]
-    [control_alt char_d         (cmd $'($prefix)drop')]
-    [control_alt char_q         (cmd $'($prefix)drop --others')]
+    [alt         char_d         (cmd $'($prefix)drop')]
+    [alt         char_q         (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
 
