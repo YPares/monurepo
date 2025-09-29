@@ -37,7 +37,7 @@ def print-oplog [width: int, state: record] {
 
 def print-revlog [width: int, state: record] {
   ( call-jj ...$state.jj_revlog_extra_args
-      -w ($width * (3.0 / 4) | into int)
+      -w $width
       --revisions $state.revset
       --template $state.templates.rev_log
       --at-operation $state.selected_operation_id
@@ -46,7 +46,7 @@ def print-revlog [width: int, state: record] {
 
 def print-evolog [width: int, state: record] {
   ( call-jj evolog #...$state.jj_revlog_extra_args
-      -w ($width * (3.0 / 4) | into int)
+      -w $width
       -r $state.selected_change_id
       --template $state.templates.evo_log
       --at-operation $state.selected_operation_id
