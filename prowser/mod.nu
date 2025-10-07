@@ -358,7 +358,6 @@ export def --env browse [
       add ...$rest
     }
     [true _ [file]] => {
-      [{command: ([$env.EDITOR ...$selected] | str join " "), cwd: $env.PWD}] | history import
       run-external $env.EDITOR ...$selected
     }
     _ => {
