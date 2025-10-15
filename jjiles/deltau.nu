@@ -20,7 +20,7 @@ export def layout-flags [side_by_side_threshold: int] {
   let width = $env.DELTA_WIDTH? |
     default $env.FZF_PREVIEW_COLUMNS? |
     default $env.FZF_COLUMNS? |
-    default (tput cols) |
+    default (term size).columns |
     into int
   [ --width $width
     ...(if $width >= $side_by_side_threshold {[
