@@ -60,6 +60,15 @@ export def --env load [dir: path = "."] {
   }
 }
 
+# Unloads the previously loaded .envrc
+export def --env unload [] {
+  let d = mktemp --directory
+  cd $d
+  load
+  cd -
+  rm -rf $d
+}
+
 export def dir [] {
   if $env.DIRENV_FILE? != null {
     $env.DIRENV_FILE | path dirname
