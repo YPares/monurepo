@@ -445,7 +445,7 @@ export def default-keybindings [
     [alt         [char_j down]  (cmd $'($prefix)down')]
     [alt         char_s         (cmd $'($prefix)accept')]
     [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right --reset')]
-    [alt         char_x         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
+    [shift_alt   char_c         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
     [alt         char_z         (cmd $'($prefix)reset')]
     [alt         char_d         (cmd $'($prefix)drop')]
     [alt         char_q         (cmd $'($prefix)drop --others')]

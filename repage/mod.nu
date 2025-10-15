@@ -223,11 +223,10 @@ export def default-keybindings [] {
   [
     [modifier keycode event];
 
-    [control     char_v (cmd $'print ""; repage -s')]
-    [control     char_w (cmd $'repage -v less')]
-    [control     char_x (cmd $'repage -v explore')]
-    [control_alt char_x (cmd $'print ""; repage -v grid-uniq')]
     [control_alt char_c (cmd $'print ""; repage -v columns')]
+    [alt         char_x (cmd $'print ""; repage -s')]
+    [control_alt char_s (cmd $'repage -v less')]
+    [control_alt char_x (cmd $'repage -v explore')]
   ] | insert mode emacs
 }
 
