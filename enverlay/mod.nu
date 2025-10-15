@@ -66,10 +66,18 @@ export def dir [] {
   }
 }
 
-export def --env auto [--load-only (-l)] {
-  $env.enverlay.autoload_direnv = if $load_only {
+# Switch auto-(un)loading of the direnv on or off
+#
+# Without flags, auto-loading AND unloading are switched on
+export def --env auto [
+  --load-only (-l) # Switch ONLY auto-loading on
+  --off (-o) # Switch everything off
+] {
+  $env.enverlay.autoload_direnv = if $off {
+    null
+  } else if $load_only {
     "load"
-  } else if $env.enverlay.autoload_direnv? == null {
+  } else {
     "full"
   }
 }
@@ -92,7 +100,10 @@ export def render [] {
     )
   ]
   let direnv_auto_bit = if $env.enverlay.autoload_direnv? != null {
-    $"(ansi magenta)📂auto\(($env.enverlay.autoload_direnv))(ansi reset) "
+    $"(ansi magenta)📂(match $env.enverlay.autoload_direnv {
+      "full" => "auto"
+      "load" => "auto-load"
+    })(ansi reset) "
   }
   let envs_bit = $envs | each {[$in ' ']} | flatten | str join ""
   let num_shown_overlays = $width / 35 | into int
