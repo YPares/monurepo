@@ -145,7 +145,7 @@ export def default-keybindings [--prefix = "enverlay "] {
   [
     [modifier keycode event];
 
-    [alt      char_e  (cmd $'overlay new direnv; ($prefix)load')]
+    [alt      char_e  (cmd $'($prefix)load')]
   ] | insert mode emacs
 }
 
