@@ -358,7 +358,7 @@ export def --env browse [
       add ...$rest
     }
     [true _ [file]] => {
-      run-external $env.EDITOR ...$selected
+      commandline edit -r $"($env.EDITOR) ...($selected)" --accept
     }
     _ => {
       commandline edit -r ($elems_before | slice 0..-2 | append $selected | str join " ")
