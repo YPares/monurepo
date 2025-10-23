@@ -1,4 +1,4 @@
-use std formats "from jsonl"
+use std formats ["to jsonl"]
 use viewers.nu
 
 export-env {
