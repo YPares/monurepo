@@ -69,6 +69,15 @@ export def --env unload [] {
   rm -rf $d
 }
 
+# Loads the .envrc if no env is currently loaded, else unload the current env
+export def --env toggle [] {
+  if (status).state.loadedRC? == null {
+    load
+  } else {
+    unload
+  }
+}
+
 export def dir [] {
   if $env.DIRENV_FILE? != null {
     $env.DIRENV_FILE | path dirname
@@ -145,6 +154,7 @@ export def default-keybindings [--prefix = "enverlay "] {
   [
     [modifier keycode event];
 
+    [alt      char_a  (cmd $'($prefix)toggle')]
     [alt      char_e  (cmd $'($prefix)load')]
   ] | insert mode emacs
 }
