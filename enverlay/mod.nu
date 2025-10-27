@@ -54,7 +54,7 @@ export def --env load [dir: path = "."] {
   }
   load-env (__export $dir)
   try { job kill $jid }
-  let loadedRC = status | get state.loadedRC?
+  let loadedRC = (status).state.loadedRC?
   if $loadedRC != null and $loadedRC.allowed? != 0 {
     error make {msg: $"($loadedRC.path) is not allowed"}
   }
@@ -71,16 +71,10 @@ export def --env unload [] {
 
 # Loads the .envrc if no env is currently loaded, else unload the current env
 export def --env toggle [] {
-  if (status).state.loadedRC? == null {
-    load
-  } else {
+  if (status).state.loadedRC.allowed? == 0 {
     unload
-  }
-}
-
-export def dir [] {
-  if $env.DIRENV_FILE? != null {
-    $env.DIRENV_FILE | path dirname
+  } else {
+    load
   }
 }
 
@@ -100,8 +94,19 @@ export def --env auto [
   }
 }
 
+def direnv-folder [envrc_path] {
+  $envrc_path | path dirname | path basename
+}
+
 export def render [] {
   let width = (term size).columns
+
+  let state = (status).state
+  let found = $state.foundRC.path?
+  let loaded = if $state.loadedRC.path? != null and $state.loadedRC.allowed == 0 {
+    $state.loadedRC.path
+  }
+  let found_allowed = $state.foundRC.allowed? == 0
 
   let envs = [
     ...(
@@ -111,9 +116,12 @@ export def render [] {
       }
     )
     ...(
-      match (dir) {
-        null => []
-        $path => [$"(ansi yellow)📂($path | path basename)(ansi reset)"]
+      match [$found $loaded] {
+        [null null] => []
+        [$path null] => [$"(ansi grey)🖿 (ansi attr_italic)(if not $found_allowed {(ansi attr_strike)} else {""})(direnv-folder $path)(ansi reset)"]
+        [null $path] => [$"(ansi yellow)🗁 (direnv-folder $path)(ansi reset)"]
+        _ if ($found == $loaded) => [$"(ansi green)🗁 (direnv-folder $loaded)(ansi reset)"]
+        _ => [$"(ansi red)🗁 (direnv-folder $loaded)(ansi reset)"]
       }
     )
   ]
