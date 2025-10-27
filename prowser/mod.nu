@@ -84,7 +84,11 @@ def add-right --env [args] {
   )
 }
 
-export def --env add [--left (-l), ...args] {
+# Add new dir(s), by default on the right of the current one
+export def --env add [
+  --left (-l) # Add new dir(s) to the _left_ of the current dir
+  ...args # New dirs
+] {
   let args = $args | path expand -n
   if $left {
     add-left $args
@@ -93,7 +97,10 @@ export def --env add [--left (-l), ...args] {
   }
 }
 
-export def --env drop [--others (-o)] {
+# Drop the current dir
+export def --env drop [
+  --others (-o) # Drop every dir EXCEPT the current one
+] {
   if $others {
     $env.DIRS_LIST = [($env.DIRS_LIST | get $env.DIRS_POSITION)]
     $env.DIRS_POSITION = 0
