@@ -18,7 +18,7 @@ def cap-tag [pattern] {
 }
 
 def revs-with-cap-tag [--glob pattern] {
-  $"subject\((if $glob {'glob:'} else {''})'(cap-tag $pattern)')"
+  $"description\((if $glob {'glob-i:'} else {''})'*(cap-tag $pattern)*')"
 }
 
 # Find the revisions described by "<capping:BOOKMARK>" in some revset
@@ -28,10 +28,10 @@ def get-caps-in-revset [
   let revset = $revset | default $env.nujj.caps.revset
   tblog --color -r $"($revset) & (revs-with-cap-tag --glob "*")" -n {
     colored_change_id: "change_id.shortest(8)"
-    subject: "description.first_line()"
+    description: "description"
   } | insert change_id {get colored_change_id | ansi strip} |
-      insert bookmark {get subject | parse (cap-tag "{bm}") | get $.0.bm} |
-      reject subject
+      insert bookmark {get description | parse $"{any1}(cap-tag "{bm}"){any2}" | get $.0.bm} |
+      reject description
 }
 
 # Rebases the given revision under the given cap. A 'cap' is a revision
