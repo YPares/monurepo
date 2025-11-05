@@ -114,7 +114,7 @@ export def --wrapped reparent [
   let removed = $parents | parse "-{rev}" | get rev
 
   ( ^jj rebase -s $revision
-       -d $"all:\(($revision)- | ($added | list-to-revset)) & ~($removed | list-to-revset)"
+       -d $"\(($revision)- | ($added | list-to-revset)) & ~($removed | list-to-revset)"
   )
 }
 
