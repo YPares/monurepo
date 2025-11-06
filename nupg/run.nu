@@ -38,7 +38,7 @@ export def --wrapped psql [...args] {
 }
 
 # Run an SQL statement without performing any output conversion
-def raw [
+export def raw [
   --variables (-v): record = {}
     # Values to use to replace the :foo, :"foo", :'foo' variables in the query
   ...params: any
