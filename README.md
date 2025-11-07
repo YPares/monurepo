@@ -20,6 +20,7 @@ A collection of Nushell libraries and tools:
   support, auto-refresh, adaptive diff layout, system theme detection (which
   will also work in [WSL](https://learn.microsoft.com/en-us/windows/wsl/)) and
   syntax-highlighting via [`delta`](https://github.com/dandavison/delta)
+- [nypst](./nypst): Generate `Typst` code programmatically with Nu code
 
 The reason to collect them all here is because Nushell currently does not have a
 default package manager, and some of these libraries depend on one another.

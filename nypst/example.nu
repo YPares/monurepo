@@ -1,0 +1,84 @@
+use mod.nu *
+
+[
+  {set document {title: [This is Nushell], author: '"A mad one"'}}
+
+  {import "@preview/cmarker:0.1.6"}
+
+  {set page {width: 20cm, margin: 1cm}}
+
+  {set list {marker: [---]}}
+
+  {set table {fill: (fn {} [x y] "if y == 0 { gray }")}}
+
+  {show table (pset align center)}  # pset is like set but without named arguments
+
+  {show (call table.cell.where {y: 0}) (pset align center)}
+
+  {pcall title}
+
+  "- Whaaaaat? No, no this is Typst"
+
+  "- Nu-huh, that's Nushell!"
+
+  "- Wait... could it be... _*both???*_"
+
+  _This is a line but wait what it is not quoted ah but you see it contains no punctuation that
+  conflicts with Nushell syntax such as commas so "it's" mostly fine expect for that previous
+  single quote which I had to quote huhu._
+
+  "- ...but prefer not doing that, quote your lines it's better."
+
+  $"- Wait (0.5sec + 0.25sec * 2). Where are the hash signs to introduce Typst code?"
+
+  "- Oh, you can just use closures with no args instead. The {...} blocks.
+     Hashes are for comments in Nushell, so you can use them but they need to be inside quoted strings #emph[like this]. Watch out, here comes a right-aligned rect:"
+
+  {pcall align right (call rect {inset: 3pt, stroke: red} [
+    I am a rect.
+    {call linebreak}
+    Get [{set text {weight: '"bold"'}} rekt.]
+    {call linebreak}
+    "(Lol. Got it?)"
+  ])}
+
+  "Wow, it looked angry, you saw how red it was? Oh and here comes a centered grid:"
+
+  # pcall is like call but without named arguments
+  {pcall align center (call grid {columns: 2, inset: .5em}
+    [Hey that is a first cell]      [Hey a second one]
+    ["Oh, here comes another"]      [...]
+    [...My god this will never end] [Oh wait nope it does]
+  )}
+
+  "- Ok ok that's mildly cool. But what is it for?"
+
+  "- First, to avoid string-escaping hell when using Nushell to generate Typst code.
+     And also, let's say I want to generate content programmatically. `nypst` can translate
+     most Nushell types into their Typst equivalents:"
+
+  {(call table {columns: (array 1fr 3fr)}
+    [Nu type]  [Typst translation]
+    [record]   [{a: 34, b: red}]
+    [datetime] [(date now)]
+    [duration] [(12sec + 7min - 40hr)]
+    ["null"]   [null "(Typst 'none' is invisible)"]
+    ["list (need to call `array`)"] [{array ...(seq 1 15)}]
+  )}
+
+  "- But what about tables? Say I want to include in this doc the output of `ls`.
+     Well, Nushell as built-in support for Markdown generation from its regular datastructures.
+     And Typst has the cmarker library:"
+
+  {pcall cmarker.render (ls | to md | raw-str)}
+
+  "- Huh."
+
+  "- That's cool, right?"
+
+  "- But what would have happened if the some Markdown cell had contained double quo..."
+
+  "- ...AND I CAN DO THE SAME WITH `ps`!! See:"
+
+  {pcall cmarker.render (ps | where name =~ nu | to md | raw-str)}
+] | compile example.pdf
