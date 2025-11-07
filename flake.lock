@@ -8,11 +8,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1758687491,
-        "narHash": "sha256-sy8Q+MfBe+MZzYj4MJwBDe4lkLnmhy1POO86hWZgqO8=",
+        "lastModified": 1761645416,
+        "narHash": "sha256-wTQzbbQ6XHtvNJVuhJj+ytZDRyNtwUKbrIfIvMvKNfQ=",
         "owner": "numtide",
         "repo": "blueprint",
-        "rev": "7ecaeb70f63d14a397c73b38f57177894bb795c8",
+        "rev": "633af1961cae8e02bc6195e6e599a6b09bf75217",
         "type": "github"
       },
       "original": {
@@ -38,11 +38,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1760934318,
-        "narHash": "sha256-/oUYsC0lUCBory65VK+UHqCCsCspbL1Vgfcf1KUYqVw=",
+        "lastModified": 1762361079,
+        "narHash": "sha256-lz718rr1BDpZBYk7+G8cE6wee3PiBUpn8aomG/vLLiY=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "87848bf0cc4f87717fc813a4575f07330c3e743c",
+        "rev": "ffcdcf99d65c61956d882df249a9be53e5902ea5",
         "type": "github"
       },
       "original": {
@@ -54,16 +54,16 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1760640716,
-        "narHash": "sha256-iJ+sITO67hWDdXqSlKH1mHOLNhXUYgYEbDtllTeCXtc=",
+        "lastModified": 1760965567,
+        "narHash": "sha256-0JDOal5P7xzzAibvD0yTE3ptyvoVOAL0rcELmDdtSKg=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a67807a33ba45e92f0e4cc5a7448aff438a385fa",
+        "rev": "cb82756ecc37fa623f8cf3e88854f9bf7f64af93",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "master",
+        "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -110,11 +110,11 @@
         "webserver-nu-src": "webserver-nu-src"
       },
       "locked": {
-        "lastModified": 1760908408,
-        "narHash": "sha256-HTg/NyfnhwHXg7Ns1qRyJV6g2zqrFkbRGruYr+s9+ds=",
+        "lastModified": 1761252476,
+        "narHash": "sha256-Ct8XG8uBCJy70mTqyLDxUu/rVtBWdvx8SDgzIDoeRKs=",
         "owner": "YPares",
         "repo": "nushellWith",
-        "rev": "61428fe64c374c054fa7907ea714b1182e5a4c08",
+        "rev": "7d8265fdc5869dd8541e44b1d7b5d3d65cd4f2db",
         "type": "github"
       },
       "original": {
