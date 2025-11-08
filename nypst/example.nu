@@ -16,11 +16,11 @@ use mod.nu *
 
   {set table.header {repeat: true}}
 
-  {show table (set_ align center)} # set_ is like set but with only positional arguments. So it's just `(set align {} center)`
+  {show table (set_ align center)} # set_ is like set but with only positional arguments. So it's just (set align {} center)
 
   {show (> table.cell.where {y: 0}) (set_ align center)}
 
-  {> title} # Call a Typst function with no args. So that's just `#title()`
+  {> title} # Call a Typst function with no args. So that's just #title() in Typst code
 
   "- Whaaaaat? No, no this is Typst"
 
@@ -47,6 +47,8 @@ use mod.nu *
     I am a rect.
     {> linebreak}
     Get [{show text smallcaps} rekt.]
+    # Brackets (I mean, lists) can be used to delimit the scope in which
+    # show & set rules do apply, like in regular Typst
   ])}
 
   "Wow, it looked angry, you saw how red it was? Oh and here comes a quite dashing grid:"
@@ -55,7 +57,16 @@ use mod.nu *
     > grid
       { columns: 2
         inset: .5em
-        stroke: (> stroke {dash: (s dashed), thickness: .1pt}) }
+        fill: (=>_ [x y] "if calc.odd(x + y) {green} else {aqua}")
+        stroke: (=>_ [x y] {
+          # We can use closures basically anywhere, that's convenient
+          # if we want to declare local Nu variables:
+          let borders = [top bottom left right] | shuffle | take 2 
+          { ($borders.0): (> stroke {dash: (s dashed)}) 
+            ($borders.1): (> stroke {dash: (s dotted)})
+          }
+        })
+      }
       [Hey that is a first cell]      [Hey a second one]
       ["Oh, here comes another"]      [...]
       [...My god this will never end] [Oh wait nope it does]
@@ -78,17 +89,13 @@ use mod.nu *
 
   "- But what about tables? Say I want to include in this doc the output of `ls`.
      Well, Nushell as built-in support for Markdown generation from its regular datastructures.
-     And Typst has the cmarker library:"
+     And Typst has the `cmarker` library to render inlined Markdown:"
 
-  {>_ cmarker.render (ls | quoted-md)}
+  {>_ cmarker.render (ls | to quoted-md)}
 
   "- Huh."
 
-  "- That's cool, right?"
+  "- That's cool, right? ...AND I CAN DO THE SAME WITH `ps`!! See:"
 
-  "- But what would have happened if the some Markdown cell had contained double quo..."
-
-  "- ...AND I CAN DO THE SAME WITH `ps`!! See:"
-
-  {>_ cmarker.render (ps | where name =~ nu | quoted-md)}
+  {>_ cmarker.render (ps | where name =~ nu | to quoted-md)}
 ] | compile example.pdf

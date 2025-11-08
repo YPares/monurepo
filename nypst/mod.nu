@@ -128,22 +128,26 @@ export def "=>_" [positional_args = [] ...body] {
   => {} $positional_args ...$body
 } 
 
-# Properly quote a string so it can be embedded as a Typst string
+# Concatenate strings and quote the result so it can be embedded as a Typst string
+#
+# The input strings must not contain double quotes
 export def s [--sep = " " ...args] {
   $'"($args | str join $sep)"'
 }
 
 # Raw concatenation, to make arbitrary expressions
+#
+# The input strings must not contain double quotes
 export def c [--sep = " " ...args] {
   $"($args | str join $sep)"
 }
 
-# Render a value with `to md` and safely quote it
-export def quoted-md [] {
+# Render a value with `to md` and quote it so it's a `raw(...)` Typst string
+export def "to quoted-md" [] {
   $"````($in | to md)````"
 }
 
-# Embed a Typst array
+# Print a Typst array
 export def array [...elems] {
   $elems | process-positional --sep ', ' | $"\(($in))"
 }
