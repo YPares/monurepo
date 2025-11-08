@@ -110,6 +110,11 @@ export def show [
   $"show ($pattern): ($args | process-positional --in-code)"
 }
 
+# Print a Typst label
+export def lbl [name] {
+  $"<($name)>"
+}
+
 # Print a Typst anonymous function
 export def "=>" [
   named_args = {}
@@ -128,23 +133,23 @@ export def "=>_" [positional_args = [] ...body] {
   => {} $positional_args ...$body
 } 
 
-# Concatenate strings and quote the result so it can be embedded as a Typst string
+# Concatenate $in and args and quote the result so it can be embedded as a Typst string
 #
 # The input strings must not contain double quotes
-export def s [--sep = " " ...args] {
-  $'"($args | str join $sep)"'
+export def st [--sep = " " ...args] {
+  '"' + ($in | append $args | str join $sep) + '"'
 }
 
-# Raw concatenation, to make arbitrary expressions
+# Raw concatenation of $in and args, to make arbitrary expressions
 #
 # The input strings must not contain double quotes
-export def c [--sep = " " ...args] {
-  $"($args | str join $sep)"
+export def ct [--sep = " " ...args] {
+  append $args | str join $sep
 }
 
 # Render a value with `to md` and quote it so it's a `raw(...)` Typst string
 export def "to quoted-md" [] {
-  $"````($in | to md)````"
+  '````' + ($in | to md) + '````'
 }
 
 # Print a Typst array

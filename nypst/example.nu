@@ -3,10 +3,11 @@ use mod.nu *
 [
   {set document {
     title: [This is Nushell]  # Embed as a Typst content
-    author: (s A mad one)  # Embed as a Typst string (between double quotes)
+    author: (st A mad one)  # Embed as a Typst string (between double quotes)
   }}
 
   {import "@preview/cmarker:0.1.6"}
+  {import "@preview/based:0.2.0" base64}
 
   {set page {width: 20cm, margin: 1cm}} # Records are used to set Typst named arguments
 
@@ -62,8 +63,8 @@ use mod.nu *
           # We can use closures basically anywhere, that's convenient
           # if we want to declare local Nu variables:
           let borders = [top bottom left right] | shuffle | take 2 
-          { ($borders.0): (> stroke {dash: (s dashed)}) 
-            ($borders.1): (> stroke {dash: (s dotted)})
+          { ($borders.0): (> stroke {dash: (st dashed)}) 
+            ($borders.1): (> stroke {dash: (st dotted)})
           }
         })
       }
@@ -98,4 +99,16 @@ use mod.nu *
   "- That's cool, right? ...AND I CAN DO THE SAME WITH `ps`!! See:"
 
   {>_ cmarker.render (ps | where name =~ nu | to quoted-md)}
+
+  "- Ok yeah that's pretty c..."
+
+  "- WANT MORE??? IN @nu-logo IS THE NUSHELL LOGO WHICH I'M DOWNLOADING ON THE FLY!!!!"
+
+  {(> figure
+    {caption: [The nushell logo downloaded on the fly]}
+    (> image {width: 17em} (>_ base64.decode (
+      http get https://avatars.githubusercontent.com/u/50749515 | encode base64 | st
+    ))))} (lbl nu-logo)
+
+  "- Doctor, I think we lost him..."
 ] | compile example.pdf
