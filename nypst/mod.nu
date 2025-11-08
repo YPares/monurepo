@@ -1,4 +1,4 @@
-export def process-elem [--in-code elem] {
+def process-elem [--in-code elem] {
   let hash = if (not $in_code) {"#"}
   match ($elem | describe -d | get type) {
     "closure" => {
@@ -32,11 +32,11 @@ export def process-elem [--in-code elem] {
   }
 }
 
-export def process-positional [--sep = "\n", --in-code] {
+def process-positional [--sep = "\n", --in-code] {
   each {process-elem --in-code=($in_code) $in} | str join $sep
 }
 
-export def process-named [record: record] {
+def process-named [record: record] {
   if ($record | is-not-empty) {
     $record |
       transpose key val |
@@ -51,7 +51,7 @@ export def process-named [record: record] {
 }
 
 # Print a call to a Typst function
-export def call [
+export def ">" [
   fn_name: string
   named_args = {}: record
   ...positional_args: any
@@ -64,11 +64,11 @@ export def call [
 }
 
 # Print a call to a Typst function with only positional args
-export def pcall [
+export def ">_" [
   fn_name: string
   ...positional_args: any
 ] {
-  call $fn_name {} ...$positional_args
+  > $fn_name {} ...$positional_args
 }
 
 # Print a Typst import statement
@@ -91,11 +91,11 @@ export def set [
   named_args = {}: record
   ...positional_args
 ] {
-  $"set (call $fn_name $named_args ...$positional_args)"
+  $"set (> $fn_name $named_args ...$positional_args)"
 }
 
 # Print a Typst set rule with only positional args
-export def pset [
+export def set_ [
   fn_name: string
   ...positional_args
 ] {
@@ -111,7 +111,7 @@ export def show [
 }
 
 # Print a Typst anonymous function
-export def fn [
+export def "=>" [
   named_args = {}
   positional_args = []
   ...body
@@ -122,6 +122,11 @@ export def fn [
     $positional_args | str join ', '
   )) => ($body | process-positional --in-code)"
 }
+
+# Print a Typst anonymous function that only takes positional args
+export def "=>_" [positional_args = [] ...body] {
+  => {} $positional_args ...$body
+} 
 
 # Properly quote a string so it can be embedded as a Typst string
 export def s [--sep = " " ...args] {
@@ -143,7 +148,12 @@ export def array [...elems] {
   $elems | process-positional --sep ', ' | $"\(($in))"
 }
 
+# Convert a list to Typst code
+export def "to typst" []: list<any> -> string {
+  process-positional
+}
+
 # Compile a list of Typst lines to a file
 export def compile [out: path]: list -> nothing {
-  process-positional | typst compile "-" $out
+  to typst | typst compile "-" $out
 }
