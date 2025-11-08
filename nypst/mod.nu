@@ -50,6 +50,7 @@ export def process-named [record: record] {
   } else {""}
 }
 
+# Print a call to a Typst function
 export def call [
   fn_name: string
   named_args = {}: record
@@ -62,7 +63,7 @@ export def call [
   ))"
 }
 
-# Call a typst function with only positional args
+# Print a call to a Typst function with only positional args
 export def pcall [
   fn_name: string
   ...positional_args: any
@@ -70,6 +71,7 @@ export def pcall [
   call $fn_name {} ...$positional_args
 }
 
+# Print a Typst import statement
 export def import [
   module: string
   --as: string
@@ -83,6 +85,7 @@ export def import [
   ) ($imports)"
 }
 
+# Print a Typst set rule with only positional args
 export def set [
   fn_name: string
   named_args = {}: record
@@ -91,7 +94,7 @@ export def set [
   $"set (call $fn_name $named_args ...$positional_args)"
 }
 
-# Use set with only positional args
+# Print a Typst set rule with only positional args
 export def pset [
   fn_name: string
   ...positional_args
@@ -99,6 +102,7 @@ export def pset [
   set $fn_name {} ...$positional_args
 }
 
+# Print a Typst show rule
 export def show [
   pattern: string
   ...args 
@@ -106,6 +110,7 @@ export def show [
   $"show ($pattern): ($args | process-positional --in-code)"
 }
 
+# Print a Typst anonymous function
 export def fn [
   named_args = {}
   positional_args = []
@@ -118,15 +123,27 @@ export def fn [
   )) => ($body | process-positional --in-code)"
 }
 
-# TODO: Handle escaping better
-export def raw-str [] {
-  $"\"($in)\""
+# Properly quote a string so it can be embedded as a Typst string
+export def s [--sep = " " ...args] {
+  $'"($args | str join $sep)"'
 }
 
+# Raw concatenation, to make arbitrary expressions
+export def c [--sep = " " ...args] {
+  $"($args | str join $sep)"
+}
+
+# Render a value with `to md` and safely quote it
+export def quoted-md [] {
+  $"````($in | to md)````"
+}
+
+# Embed a Typst array
 export def array [...elems] {
   $elems | process-positional --sep ', ' | $"\(($in))"
 }
 
-export def compile [out: path] {
+# Compile a list of Typst lines to a file
+export def compile [out: path]: list -> nothing {
   process-positional | typst compile "-" $out
 }
