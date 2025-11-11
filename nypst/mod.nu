@@ -71,6 +71,18 @@ export def ">_" [
   > $fn_name {} ...$positional_args
 }
 
+# Access a field or call a method on a Typst expression passed as input
+export def dot [
+  expr: string
+]: string -> string {
+  $"($in).($expr)"
+}
+
+# Splice the input expression (which must evaluate to a Typst array or dictionary)
+export def spliced [] {
+  $"..($in)"
+}
+
 # Print a Typst import statement
 export def import [
   module: string
@@ -147,9 +159,16 @@ export def ct [--sep = " " ...args] {
   append $args | str join $sep
 }
 
-# Render a value with `to md` and quote it so it's a `raw(...)` Typst string
-export def "to quoted-md" [] {
-  '````' + ($in | to md) + '````'
+# Print input text between backticks, as Typst `raw` content, so it is properly escaped if it contains double quotes notable
+export def raw [
+  --lang (-l) = ""
+  --num-backticks (-n) = 4
+] {
+  mut ticks = ""
+  for i in ..<$num_backticks {
+    $ticks += "`"
+  }
+  $"($ticks)($lang)\n($in)($ticks)"
 }
 
 # Print a Typst array

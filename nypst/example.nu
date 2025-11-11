@@ -92,13 +92,41 @@ use mod.nu *
      Well, Nushell as built-in support for Markdown generation from its regular datastructures.
      And Typst has the `cmarker` library to render inlined Markdown:"
 
-  {>_ cmarker.render (ls | to quoted-md)}
+  {>_ cmarker.render (ls | to md | raw)}
+  # raw puts its input text between backticks so it becomes a Typst `raw` content 
 
-  "- Huh."
+  "- Huh. But Nushell can just output CSV, and Typst can read CSV out of the box"
 
-  "- That's cool, right? ...AND I CAN DO THE SAME WITH `ps`!! See:"
+  "- True, you can do that, but that requires to handle the headers specifically,
+     which can be cumbersome unless you know the headers and the amount of columns
+     ahead of time, and also properly escape the CSV before wrapping it as `bytes`.
+     A technique is to use a Typst `raw` text block for that:"
 
-  {>_ cmarker.render (ps | where name =~ nu | to quoted-md)}
+  {
+    let files = ls
+    let cols = $files | columns
+    (> table {columns: ($cols | length)}
+      ...($cols | each {[$in]})
+      (
+        (>_ csv
+          (>_ bytes (
+            $files | to csv --noheaders | raw | dot text
+          ))
+        ) |
+          dot (>_ flatten) |
+          spliced
+      )
+    )
+  }
+  # The `dot` command is used to access fields or call methods on the Typst expression fed in input.
+  # The `spliced` command prints its input expression with ".." in front of it so its output value is
+  # spliced by Typst as positional args of the `table` call.
+
+  "- Indeed. That's... cumbersom... er."
+
+  "- ...AND I CAN DO THE SAME WITH `ps`!! See:"
+
+  {>_ cmarker.render (ps | where name =~ nu | to md | raw)}
 
   "- Ok yeah that's pretty c..."
 
