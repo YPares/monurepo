@@ -23,7 +23,9 @@ export def shorten [
     reset: (ansi reset)
   }} else {{}}
   let elems = if $local_root != null {
-    $path | path relative-to $local_root | path split
+    try {
+      $path | path relative-to $local_root | path split
+    } catch {[]}
   } else {[]}
   if ($elems | is-empty) {
     let elems = $path | str replace $nu.home-path "~" | path split | slice ((-1 * $keep)..)
