@@ -62,7 +62,7 @@ export def raw [
     str join "\n" |
     tee {std log debug $"Running: ($in)"} |
       psql --csv |
-      from csv |
+      from csv --no-infer |
       update cells {if ($in == $env.nupg.null_placeholder) {null} else {$in}}
 }
 

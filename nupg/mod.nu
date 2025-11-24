@@ -72,6 +72,10 @@ export def default-pg-to-nu-conversions [
   [
     [pg_type pg_convert nu_convert];
 
+    [[smallint integer bigint smallserial serial bigserial]
+             null       {into int}]
+    [[decimal numeric real "double precision"]
+             null       {into float}]
     [boolean null       {$in == "t"}]
     [["text[]" "integer[]" "information_schema.sql_identifier[]"]
       {$"array_to_json\(($in))"}
@@ -79,8 +83,7 @@ export def default-pg-to-nu-conversions [
     ]
     [[json jsonb] null  {from json}]
     [["timestamp without time zone" "timestamp with time zone"]
-      null
-      {into datetime}]
+             null       {into datetime}]
   ]
 }
 
