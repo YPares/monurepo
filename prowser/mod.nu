@@ -259,7 +259,7 @@ def then [cls: closure, --else (-e): any] {
 export def select-paths [multi: bool, --prompt: string] {
   let dir_clr = $env.config.color_config?.shape_filepath? | default "cyan"
   $in | rescope {
-    let color_config_file = mkscoped file { mktemp --suffix .nuon }
+    let color_config_file = mkscoped file { mktemp -t --suffix .nuon }
     $env.config.color_config? | default {} | save -f $color_config_file
 
     $in | each {|p|
