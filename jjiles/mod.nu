@@ -474,6 +474,13 @@ export def --wrapped main [
     finalize $finalizers $"Keybindings for ($conflicting_keys | get key) cannot be overriden by user config"
   }
 
+  let term_size = term size
+  let preview_default_pos = if $term_size.columns > $term_size.rows * 2 {
+    "right"
+  } else {
+    "bottom"
+  }
+
   let res = try {
     ^nu -n $fzf_callbacks update-list refresh $state_file |
     ( ^fzf
@@ -504,6 +511,7 @@ export def --wrapped main [
       --info inline-right
 
       --preview-window ([
+        $preview_default_pos
         hidden
         ...(if $jjiles_cfg.interface.preview-line-wrapping {[wrap]} else {[]})
       ] | str join ",")
