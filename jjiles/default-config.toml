@@ -10,21 +10,6 @@
 ############################################################################
 
 
-## Watcher settings. This is meant to be configured per repository,
-## and can be repeated for each folder in the repository to watch
-#[[jjiles.watched]]
-##
-## The path (relative to project root) to watch:
-#folder = "src"
-##
-## A glob pattern. Which files should be watched for changes in this folder
-## (all by default):
-#pattern = "**/*.rs" 
-##
-## A list of glob patterns. Any path matching an entry should be ignored when
-## modified (empty by default). Additionally, any path matching an entry in
-## one of your .gitignore files will be ignored:
-#ignore = ["**/*.bck"]
 
 ## Fetcher settings. This is meant to be configured per repository,
 ## and can be repeated for each git remote to fetch regularly

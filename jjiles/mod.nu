@@ -136,14 +136,11 @@ def start-background-jobs [
   let repo_root = ^jj root | path expand -n
   let jj_folder = $repo_root | path join ".jj"
 
-  let globally_ignored = git-ignored $repo_root | append [".git/**"]
-
-  let to_watch = $jjiles_cfg.watched? | default []
   let to_fetch = $jjiles_cfg.fetched? | default []
 
   let bg_jobs_witness = $jj_folder | path join jjiles_background_jobs
 
-  if (not (($to_watch | is-empty) and ($to_fetch | is-empty))) {
+  if (not ($to_fetch | is-empty)) {
     let watcher_pid = if ($bg_jobs_witness | path exists) {
       let pid_from_file = open $bg_jobs_witness | into int
       if (ps | any {$in.pid == $pid_from_file}) {
@@ -162,40 +159,6 @@ def start-background-jobs [
       } | append $finalizers
       $nu.pid | save $bg_jobs_witness
       std log debug $"($bg_jobs_witness) created \(with pid ($nu.pid))"
-
-      for entry in $to_watch {
-        let folder = $repo_root | path join $entry.folder | path expand -n
-        let pattern = $entry.pattern? | default "**"
-        let ignored = $entry.ignore? | default [] |
-          each {|i| $folder | path join $i | path relative-to $repo_root} |
-          append $globally_ignored
-
-        if not ($folder | path exists) {
-          ( finalize $finalizers
-              $"Folder ($folder) defined in [[jiles.watched]] does not exist in the repository" )
-        }
-        let job_id = job spawn {
-          std log debug $"Job (job id): Watching `($folder)` for changes to ($pattern)"
-          watch $folder --glob $pattern -q {|_op, path|
-            let path = $path | path relative-to $repo_root
-
-            # TODO: Not a great way to test if $path matches. Find a better way
-            let ignored_paths = ($ignored | each {glob $in} | flatten | path relative-to $repo_root)
-
-            if ($path in $ignored_paths) {
-              std log debug $"Job (job id): Change to ($path) ignored"
-            } else {
-              # Will update the .jj folder and therefore trigger the jj watcher:
-              let op_id = ^jj op log -n1 --no-graph -T 'id.short()'
-              std log debug $"Job (job id): Changes to ($path) detected. Working copy snapshot. New op: ($op_id)"
-            }
-          }
-        }
-        $finalizers = {
-          job kill $job_id
-          std log debug $"Job ($job_id) killed"
-        } | append $finalizers
-      }
 
       for entry in $to_fetch {
         let remote = $entry.remote
@@ -268,9 +231,8 @@ export def headless [
 # # JJiles. A JJ Watcher.
 #
 # Shows an interactive and auto-updating jj log that allows you to drill down
-# into revisions. By default, it will refresh everytime a jj command modifies
-# the repository. Additionally, JJiles can be told to automatically snapshot
-# the working copy and refresh upon changes to a local folder with --watch.
+# into revisions. It will refresh automatically whenever the working copy is
+# modified (JJ handles auto-snapshotting via watchman).
 #
 # # User configuration
 #
@@ -339,22 +301,21 @@ export def --wrapped main [
     ^jj op log --at-operation $at_operation --no-graph -n1 --template 'id.short()' 
   }
 
-  let is_watching_local_files = if $do_watch_jj_repo {
+  # Start background jobs (git fetch only, auto-snapshot has been removed)
+  if $do_watch_jj_repo {
     let bg_jobs_fins = (start-background-jobs $jjiles_cfg).finalizers
     $finalizers = $bg_jobs_fins | append $finalizers
-    $bg_jobs_fins | is-not-empty 
-  } else {false}
+  }
 
   let tmp_dir = mktemp --directory
   $finalizers = {rm -rf $tmp_dir; std log debug $"($tmp_dir) deleted"} | append $finalizers
-  
+
   let state_file = [$tmp_dir state.nuon] | path join
 
   {
     show_keybindings: $jjiles_cfg.interface.show-keybindings
     is_watching: {
       jj_repo: $do_watch_jj_repo
-      local_files: $is_watching_local_files
     }
     templates: $templates
     jj_revlog_extra_args: $init_view.extra_args
