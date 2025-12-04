@@ -20,15 +20,11 @@ def --wrapped call-jj [--width (-w): int, ...args] {
 }
 
 def print-oplog [width: int, state: record] {
-  if $state.is_watching.jj_repo or $state.is_watching.local_files {
+  if $state.is_watching.jj_repo {
     ( print -n
         $"(ansi default_reverse)♡(ansi reset)  (char us)@(char us)(char us)"
         $"(ansi $state.color_config.operation)Live current operation(ansi reset)\n"
-        $"│  (ansi default_italic)This operation will be updated whenever (
-          [ ...(if $state.is_watching.jj_repo {['the `.jj/repo` folder']} else {[]})
-            ...(if $state.is_watching.local_files {['the folders defined in [jjiles.watched]']} else {[]})
-          ] | str join ' or '
-        ) are modified\n"
+        $"│  (ansi default_italic)This operation will be updated whenever the `.jj/repo` folder is modified\n"
         $"│(char nul)"
     )
   }
