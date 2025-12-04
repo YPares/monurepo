@@ -444,7 +444,6 @@ export def default-keybindings [
     [modifier    keycode        event];
 
     [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
-    [alt         char_f         (cmd $'($prefix)browse --multi --prompt by-mod-date {($prefix)glob files | ($prefix)sort-by-mod-date}')]
     [alt         char_r         (cmd $'($prefix)switch-depth')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]

@@ -21,7 +21,6 @@ export-env {
     caps: {
       revset: "mutable() & reachable(@, trunk()..)"
     }
-    recent_files_revset: "trunk()..@ | (::trunk() & committer_date(after:'1 week ago') & mine())"
   }
 }
 
@@ -31,9 +30,10 @@ def cmd [cmd] {
 
 export def default-keybindings [--prefix = "nujj "] {
   [
-    [modifier    keycode        event];
+    [modifier    keycode event];
 
     [control_alt char_n  (cmd $'($prefix)commandline describe')]
-    [control_alt char_f  (cmd $'($prefix)prowser browse-recent')]
+    [alt char_f          (cmd $"($prefix)prowser 'ancestors\(@,2)'")]
+    [control_alt char_f  (cmd $"($prefix)prowser 'reachable\(@,mutable\())'")]
   ] | insert mode emacs
 }
