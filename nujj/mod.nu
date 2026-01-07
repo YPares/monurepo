@@ -33,7 +33,7 @@ export def default-keybindings [--prefix = "nujj "] {
     [modifier    keycode event];
 
     [control_alt char_n  (cmd $'($prefix)commandline describe')]
-    [alt char_f          (cmd $"($prefix)prowser 'ancestors\(@,2)'")]
+    [alt char_f          (cmd $"($prefix)prowser 'heads\(::@ ~ empty\())'")]
     [control_alt char_f  (cmd $"($prefix)prowser 'reachable\(@,mutable\())'")]
   ] | insert mode emacs
 }
