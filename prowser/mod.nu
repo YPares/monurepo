@@ -73,7 +73,6 @@ def add-left --env [args] {
     }
   }
   $env.DIRS_POSITION += ($args | length)
-  reset
 }
 
 def add-right --env [args] {
@@ -234,8 +233,10 @@ export def selected-depth [] {
   }
 }
 
-export def --env switch-depth [] {
-  $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + 1) mod ($env.prowser.depth_values | length)
+export def --env switch-depth [--backwards (-b)] {
+  let len = $env.prowser.depth_values | length
+  let incr = if $backwards { $len - 1 } else { 1 }
+  $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + $incr) mod $len
 }
 
 export def "glob all" [--no-file (-F), --no-dir (-D)] {
@@ -445,16 +446,17 @@ export def default-keybindings [
 
     [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
     [alt         char_r         (cmd $'($prefix)switch-depth')]
+    [shift_alt   char_r         (cmd $'($prefix)switch-depth --backwards')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
     [alt         [char_j down]  (cmd $'($prefix)down')]
-    [alt         char_s         (cmd $'($prefix)accept')]
-    [alt         char_c         (cmd $'($prefix)add $env.PWD; ($prefix)right --reset')]
-    [shift_alt   char_c         (cmd $'($prefix)add --left $env.PWD; ($prefix)left --reset')]
-    [alt         char_z         (cmd $'($prefix)reset')]
-    [alt         char_d         (cmd $'($prefix)drop')]
-    [alt         char_q         (cmd $'($prefix)drop --others')]
+    [shift_alt   char_s         (cmd $'($prefix)accept')]
+    [alt         char_c         (cmd $'($prefix)add $env.PWD')]
+    [shift_alt   char_c         (cmd $'($prefix)add --left $env.PWD')]
+    [shift_alt   char_z         (cmd $'($prefix)reset')]
+    [alt         char_q         (cmd $'($prefix)drop')]
+    [shift_alt   char_q         (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
 
