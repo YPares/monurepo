@@ -272,7 +272,7 @@ export def select-paths [multi: bool, --prompt: string] {
     } |
     str join "\n" | (
       fzf --reverse --style default --info inline-right
-          ...($env.prowser.finder.max_height? | then {[--height $in]} -e [])
+          --height ($env.prowser.finder.max_height? | default {(term size).rows - 3})
           ...($prompt | then {[--prompt $"($in)> "]} -e [])
           --ansi --color "pointer:magenta,marker:green"
           --tiebreak end
