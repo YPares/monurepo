@@ -297,8 +297,8 @@ export def select-paths [multi: bool, --prompt: string] {
           "
           --preview-window "right,60%,noinfo,border-left"
           --color "scrollbar:blue"
-          --bind "ctrl-c:cancel,alt-c:cancel,alt-z:cancel,alt-r:cancel,alt-q:abort"
-          --bind "alt-h:first,alt-j:down,alt-k:up,alt-l:accept"
+          --bind "ctrl-c:cancel,alt-q:abort"
+          --bind "alt-h:cancel,alt-j:down,alt-k:up,alt-l:accept"
           --bind "alt-left:first,alt-right:accept,alt-up:half-page-up,alt-down:half-page-down"
           --bind "ctrl-alt-k:half-page-up,ctrl-alt-j:half-page-down"
           --bind "alt-backspace:clear-query"
@@ -445,18 +445,17 @@ export def default-keybindings [
     [modifier    keycode        event];
 
     [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
-    [alt         char_r         (cmd $'($prefix)switch-depth')]
-    [shift_alt   char_r         (cmd $'($prefix)switch-depth --backwards')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
-    [alt         [char_j down]  (cmd $'($prefix)down')]
-    [shift_alt   char_s         (cmd $'($prefix)accept')]
-    [alt         char_c         (cmd $'($prefix)add --left $env.PWD')]
-    [shift_alt   char_c         (cmd $'($prefix)add $env.PWD')]
-    [shift_alt   char_z         (cmd $'($prefix)reset')]
-    [alt         char_q         (cmd $'($prefix)drop')]
-    [shift_alt   char_q         (cmd $'($prefix)drop --others')]
+    [alt         [down char_j]  (cmd $'($prefix)down')]
+    [shift_alt   [char_h]       (cmd $'($prefix)add $env.PWD')]
+    [shift_alt   [char_l]       (cmd $'($prefix)add --left $env.PWD')]
+    [shift_alt   [char_k]       (cmd $'($prefix)switch-depth')]
+    [shift_alt   [char_j]       (cmd $'($prefix)switch-depth --backwards')]
+    [alt         char_u         (cmd $'($prefix)drop')]
+    [alt         char_i         (cmd $'($prefix)reset')]
+    [alt         char_o         (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
 
