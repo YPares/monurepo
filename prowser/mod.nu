@@ -453,8 +453,8 @@ export def default-keybindings [
     [shift_alt   [char_l]       (cmd $'($prefix)add --left $env.PWD')]
     [shift_alt   [char_k]       (cmd $'($prefix)switch-depth')]
     [shift_alt   [char_j]       (cmd $'($prefix)switch-depth --backwards')]
-    [alt         char_u         (cmd $'($prefix)drop')]
-    [alt         char_i         (cmd $'($prefix)reset')]
+    [alt         char_u         (cmd $'($prefix)reset')]
+    [alt         char_i         (cmd $'($prefix)drop')]
     [alt         char_o         (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
