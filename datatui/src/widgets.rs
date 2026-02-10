@@ -2,26 +2,39 @@ use nu_protocol::{CustomValue, Span, Value, ShellError, LabeledError};
 use serde::{Serialize, Deserialize};
 use ratatui::widgets::{List, Paragraph};
 
-pub type WidgetId = u64;
 
-/// Widget reference custom value that gets passed back to Nu
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WidgetRef {
-    pub id: WidgetId,
+/// Direct storage of ratatui widgets
+#[derive(Debug, Clone)]
+pub enum StoredWidget {
+    List(List<'static>),
+    Paragraph(Paragraph<'static>),
+}
+
+impl StoredWidget {
+    pub fn render(&self, frame: &mut ratatui::Frame, area: ratatui::layout::Rect) {
+        match self {
+            StoredWidget::List(list) => frame.render_widget(list.clone(), area),
+            StoredWidget::Paragraph(paragraph) => frame.render_widget(paragraph.clone(), area),
+        }
+    }
 }
 
 #[typetag::serde]
-impl CustomValue for WidgetRef {
+impl CustomValue for StoredWidget {
     fn clone_value(&self, span: Span) -> Value {
         Value::custom(Box::new(self.clone()), span)
     }
 
     fn type_name(&self) -> String {
-        "widget_ref".into()
+        "widget".into()
     }
 
     fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
-        Ok(Value::string(format!("WidgetRef({})", self.id), span))
+        let widget_type = match self {
+            StoredWidget::List(_) => "List",
+            StoredWidget::Paragraph(_) => "Paragraph",
+        };
+        Ok(Value::string(format!("Widget({})", widget_type), span))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -31,13 +44,9 @@ impl CustomValue for WidgetRef {
     fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
         self
     }
-
-    fn notify_plugin_on_drop(&self) -> bool {
-        true
-    }
 }
 
-impl nu_protocol::FromValue for WidgetRef {
+impl nu_protocol::FromValue for StoredWidget {
     fn from_value(v: Value) -> Result<Self, ShellError> {
         match v {
             Value::Custom { val, internal_span } => {
@@ -45,30 +54,14 @@ impl nu_protocol::FromValue for WidgetRef {
                     .downcast_ref()
                     .cloned()
                     .ok_or(ShellError::TypeMismatch {
-                        err_message: "Expected a WidgetRef".into(),
+                        err_message: "Expected a StoredWidget".into(),
                         span: internal_span,
                     })
             }
             _ => Err(ShellError::TypeMismatch {
-                err_message: "Expected a WidgetRef".into(),
+                err_message: "Expected a StoredWidget".into(),
                 span: v.span(),
             }),
-        }
-    }
-}
-
-/// Direct storage of ratatui widgets
-#[derive(Debug)]
-pub enum StoredWidget {
-    List(List<'static>),
-    Paragraph(Paragraph<'static>),
-}
-
-impl StoredWidget {
-    pub fn render(self, frame: &mut ratatui::Frame, area: ratatui::layout::Rect) {
-        match self {
-            StoredWidget::List(list) => frame.render_widget(list, area),
-            StoredWidget::Paragraph(paragraph) => frame.render_widget(paragraph, area),
         }
     }
 }
@@ -82,7 +75,7 @@ pub struct LayoutConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaneConfig {
-    pub widget: WidgetRef,
+    pub widget: StoredWidget,
     pub size: SizeConfig,
 }
 
@@ -165,16 +158,16 @@ impl LayoutConfig {
             let pane_record = pane_value.as_record()
                 .map_err(|e| LabeledError::new(format!("Pane {} must be a record: {}", i, e)))?;
 
-            // Parse widget reference
+            // Parse widget
             let widget_value = pane_record.get("widget")
                 .ok_or_else(|| LabeledError::new(format!("Pane {} must have 'widget' field", i)))?;
 
-            let widget_ref = if let Value::Custom { val, .. } = widget_value {
-                val.as_any().downcast_ref::<WidgetRef>()
-                    .ok_or_else(|| LabeledError::new(format!("Pane {} widget must be a WidgetRef", i)))?
+            let stored_widget = if let Value::Custom { val, .. } = widget_value {
+                val.as_any().downcast_ref::<StoredWidget>()
+                    .ok_or_else(|| LabeledError::new(format!("Pane {} widget must be a StoredWidget", i)))?
                     .clone()
             } else {
-                return Err(LabeledError::new(format!("Pane {} widget must be a custom WidgetRef value", i)));
+                return Err(LabeledError::new(format!("Pane {} widget must be a custom StoredWidget value", i)));
             };
 
             // Parse size
@@ -184,7 +177,7 @@ impl LayoutConfig {
             let size = SizeConfig::from_nu_value(size_value)
                 .map_err(|e| LabeledError::new(format!("Pane {} size error: {}", i, e)))?;
 
-            panes.push(PaneConfig { widget: widget_ref, size });
+            panes.push(PaneConfig { widget: stored_widget, size });
         }
 
         Ok(LayoutConfig { direction, panes })
