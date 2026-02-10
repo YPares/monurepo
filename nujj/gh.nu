@@ -21,7 +21,7 @@ export def mk-revsets [--num-runs = 20] {
 export def sync-info [
   --num-runs = 20 # We will fetch data about the Nth latest runs (--num-runs <N>)
 ] {
-  let jj_repo_config_path = ^jj root | collect | path join ".jj" "repo" "config.toml"
+  let jj_repo_config_path = ^jj config path --repo
   let gh_revsets = mk-revsets --num-runs $num_runs
   open $jj_repo_config_path |
     upsert revset-aliases {
