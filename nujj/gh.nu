@@ -29,3 +29,15 @@ export def sync-info [
     } |
     save -f $jj_repo_config_path
 }
+
+# Show the jj log of all commits to be reviewed by the given GitHub user
+export def with-reviewer [githubHandle: string] {
+  jj log -r (
+    "trunk()..(" ++
+    (
+      gh pr list -S $"review-requested:($githubHandle)" --json headRefOid |
+        from json | get headRefOid | str join '|'
+    ) ++
+    ")"
+  )
+}
