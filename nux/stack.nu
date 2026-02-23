@@ -33,19 +33,24 @@ export def pop [] {
 }
 
 # Show the N packages in the profile with the highest priority
-export def render-stack [--number (-n): int = 5] {
+export def render-stack [] {
+  let width = (term size).columns
   let pkg_names = main | get name 
+  let sep = $"(ansi cyan)|(ansi reset)"
+  let num_shown = $width / 20 | into int
   match $pkg_names {
     [] => {
-      $"<(ansi grey)empty profile(ansi reset)>"
+      $"\((ansi grey)empty profile(ansi reset))"
     }
-    _ if ($pkg_names | length) <= $number =>  {
-      $"<(ansi cyan)($pkg_names | str join ' ')(ansi reset)>"
+    _ if ($pkg_names | length) <= $num_shown =>  {
+      $pkg_names | str join $sep
     }
     _ => {
-      let firstX = ($pkg_names | take $number)
-      let others = $pkg_names | drop $number
-      $"<(ansi cyan)($firstX | str join ' ')(ansi reset) +($others | length)>"
+      let shown_pkgs = $pkg_names | take $num_shown
+      let hidden_pkgs = $pkg_names | drop $num_shown
+      $shown_pkgs | if $hidden_pkgs != [] {
+        append $"+($hidden_pkgs | length)"
+      } else { $in } | str join $sep
     }
   }
 }
