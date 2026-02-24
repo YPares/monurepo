@@ -1,5 +1,7 @@
 export use flake.nu
 export use stack.nu
+export use registries.nu
+export use search.nu
 
 export-env {
   # The nix profile to target by default
