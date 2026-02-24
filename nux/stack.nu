@@ -1,6 +1,6 @@
 # List all packages installed in profile, sorted by priority
 export def main [] {
-  ^nix profile list --json | from json |
+  ^nix profile list --profile $env.nux.profile-path --json | from json |
     get elements |
     transpose name items | flatten items |
     reject active | # Is always true with new flake profiles
@@ -8,7 +8,7 @@ export def main [] {
 }
 
 # Add a package to the profile with a higher priority than everything else in it
-export def push [pkg: path] {
+export def push [flake_ref: path] {
   let prio = match (main) {
     [] => {
       0
@@ -17,7 +17,7 @@ export def push [pkg: path] {
       $stk.0.priority - 10
     }
   }
-  ^nix profile add $pkg --priority $prio
+  ^nix profile add --profile $env.nux.profile-path $flake_ref --priority $prio
 }
 
 # Remove the package of the profile with the highest priority
@@ -27,13 +27,30 @@ export def pop [] {
       error make -u "Profile is empty"
     }
     $stk => {
-      ^nix profile remove $stk.0.name
+      ^nix profile remove --profile $env.nux.profile-path $stk.0.name
     }
   }
 }
 
-# Show the N packages in the profile with the highest priority
-export def render-stack [] {
+# Interactively select which packages to upgrade
+export def upgrade [] {
+  match (main) {
+    [] => {
+      error make -u "Profile is empty"
+    }
+    $stk => {
+      let selected = $stk.name | input list --multi
+      if ($selected | is-empty) {
+        error make -u "No package selected"
+      } else {
+        ^nix profile upgrade --profile $env.nux.profile-path --refresh ...$selected
+      }
+    }
+  }
+}
+
+# Show the packages in the profile with the highest priority
+export def render [] {
   let width = (term size).columns
   let pkg_names = main | get name 
   let sep = $"(ansi cyan)|(ansi reset)"

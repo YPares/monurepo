@@ -1,4 +1,10 @@
-export use stack.nu *
+export use flake.nu
+export use stack.nu
+
+export-env {
+  # The nix profile to target by default
+  $env.nux.profile-path = $nu.home-dir | path join ".nix-profile"
+}
 
 # Just prints the list of 'nux *' subcommands
 export def main [] {
