@@ -39,11 +39,13 @@ export def upgrade [] {
       error make -u "Profile is empty"
     }
     $stk => {
-      let selected = $stk.name | input list --multi
+      let selected = $stk | insert display {
+        $"($in.name) (ansi grey)\(($in.originalUrl))(ansi reset)"
+      } | input list --multi -d display "Select packages (<a> for all)"
       if ($selected | is-empty) {
         error make -u "No package selected"
       } else {
-        ^nix profile upgrade --profile $env.nux.profile-path --refresh ...$selected
+        ^nix profile upgrade --profile $env.nux.profile-path --refresh ...$selected.name
       }
     }
   }

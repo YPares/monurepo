@@ -11,7 +11,9 @@ export def inputs [flake: path = "."] {
 
 # Interactively select which inputs to update
 export def update [flake: path = "."] {
-  let selected = inputs $flake | columns | input list --multi
+  let selected = inputs $flake |
+    columns |
+    input list --multi "Select flake inputs (<a> for all)"
   if ($selected | is-empty) {
     error make -u "No flake input selected"
   } else {
