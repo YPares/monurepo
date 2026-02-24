@@ -120,19 +120,19 @@ export def --env drop [
   }
 }
 
-def --env __each [closure: closure] {
+def __each [closure: closure]: nothing -> table<path: path, result: any> {
   accept
   $env.DIRS_LIST | each {|dir|
     cd $dir
-    {index: $dir, out: ($dir | do $closure $dir)}
+    {path: $dir, result: ($dir | do $closure $dir)}
   }
 }
 
-def --env __par-each [closure: closure] {
+def __par-each [closure: closure]: nothing -> table<path: path, result: any> {
   accept
   $env.DIRS_LIST | par-each {|dir|
     cd $dir
-    {index: $dir, out: ($dir | do $closure $dir)}
+    {path: $dir, result: ($dir | do $closure $dir)}
   }
 }
 
