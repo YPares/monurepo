@@ -6,19 +6,24 @@ export def metadata [--flake (-f): path = "."] {
 # List all the inputs of a flake
 export def inputs [--flake (-f): path = "."] {
   let md = metadata --flake=$flake
-  $md.locks.nodes | get $md.locks.root | get inputs
+  $md.locks.nodes | get $md.locks.root | get inputs? | default {}
 }
 
 # Interactively select which inputs to update
 export def update [--flake (-f): path = "."] {
-  let selected = inputs --flake=$flake |
-    columns |
-    input list --multi "Select flake inputs (<a> for all)"
-  if ($selected | is-empty) {
-    error make -u "No flake input selected"
+  let inputs = inputs --flake=$flake
+  let selected = if ($inputs | is-empty) {
+    []
   } else {
-    ^nix flake update --flake $flake --refresh ...$selected
+    let selected = $inputs | columns |
+      input list --multi "Select flake inputs (<a> for all)"
+    if ($selected | is-empty) {
+      error make -u "No flake input selected"
+    } else {
+      $selected
+    }
   }
+  ^nix flake update --flake $flake --refresh ...$selected
 }
 
 # List all the outputs of a flake
