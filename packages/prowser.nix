@@ -16,7 +16,7 @@ nwLib.makeNuLibrary {
     fileset = ../prowser;
   };
   path = with pkgs; [
-    "${fzf}/bin"
+    "${fzf}/bin" "${fd}/bin"
   ];
   dependencies = with flake.packages.${system}; [
     rescope

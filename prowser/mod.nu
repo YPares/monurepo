@@ -3,6 +3,9 @@
 # Open and navigate directories directly from your prompt, and
 # browse your files with an extensible fzf-based fuzzy finder
 #
+# Uses fd for globbing, which means .gitignore and .ignore files will
+# be taken into account
+# 
 # Builds upon nushell's 'std dirs'
 
 use std/dirs
@@ -18,7 +21,7 @@ export-env {
     __cur_depth_idx: 0
     depth_values: [999,3,2,1]
     excluded: [
-      "**/.*/*/**" # Do not recurse into dot directories
+      "**/.git/**" # Do not recurse into .git directories
     ]
     colors: {
       separator: yellow
@@ -239,16 +242,13 @@ export def --env switch-depth [--backwards (-b)] {
   $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + $incr) mod $len
 }
 
-export def "glob all" [--no-file (-F), --no-dir (-D)] {
-  glob $in -l -d (selected-depth) -e $env.prowser.excluded --no-file=$no_file --no-dir=$no_dir
-}
-
-export def "glob files" [] {
-  glob all -D
-}
-
-export def "glob dirs" [] {
-  glob all -F
+# Glob $in pattern with fd
+export def --wrapped glob-with-fd [...extra_fd_args] {
+  (
+    ^fd --max-depth (selected-depth) --glob $in --absolute-path --hidden
+      ...($env.prowser.excluded | each -f {[-E $in]})
+      ...$extra_fd_args
+  ) | lines
 }
 
 def then [cls: closure, --else (-e): any] {
@@ -320,7 +320,7 @@ export def select-paths [multi: bool, --prompt: string] {
 #
 # Set $env.prowser.excluded to select which patterns should be excluded
 export def --env browse [
-  glob: closure
+  run_glob: closure
   --multi
   --prompt: string
   --ignore-command
@@ -347,7 +347,7 @@ export def --env browse [
   let selected = do {
     cd $arg.0
     let relative_to = $relative_to | path expand -n
-    $arg.1 | do $glob | do {
+    $arg.1 | do $run_glob | do {
       cd $relative_to
       $in | path relative-to $env.PWD |
         where {is-not-empty} |
@@ -376,7 +376,7 @@ export def --env browse [
 }
 
 export def --env down [] {
-  browse --multi --prompt dirs --ignore-command {glob dirs}
+  browse --multi --prompt dirs --ignore-command {glob-with-fd --type d}
 }
 
 # To be called in your PROMPT_COMMAND
@@ -444,7 +444,7 @@ export def default-keybindings [
   [
     [modifier    keycode        event];
 
-    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob all}')]
+    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob-with-fd}')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
