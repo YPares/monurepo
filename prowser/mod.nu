@@ -32,6 +32,7 @@ export-env {
     finder: {
       max_height: 40
     }
+    run_editor_on_empty_cmdline: true
   }
 }
 
@@ -346,13 +347,17 @@ export def --env browse [
       add ...$rest
     }
     [true _ [file]] => {
-      commandline edit -r $"($env.EDITOR) ...($selected)" --accept
+      commandline edit -r $"($env.EDITOR) ...($selected)" --accept=$env.prowser.run_editor_on_empty_cmdline
     }
     _ => {
       commandline edit -r ($elems_before | slice 0..-2 | append $selected | str join " ")
       commandline set-cursor --end
     }
   }
+}
+
+export def --env browse-all [] {
+  browse --multi --prompt all {expand-with-fd}
 }
 
 export def --env down [] {
@@ -424,7 +429,7 @@ export def default-keybindings [
   [
     [modifier    keycode        event];
 
-    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)expand-with-fd}')]
+    [control     char_f         (cmd $'($prefix)browse-all')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
