@@ -109,11 +109,11 @@
         "nushell-src": "nushell-src"
       },
       "locked": {
-        "lastModified": 1772148637,
-        "narHash": "sha256-T38IpaRWt+33RkYBXqTn+0VfFpHNAnofujm+oONyo3I=",
+        "lastModified": 1772218604,
+        "narHash": "sha256-hELIClkjwkWBmiYZ/DFZytIfQhLoQFIQ7+V5Bb43Rk4=",
         "owner": "YPares",
         "repo": "nushellWith",
-        "rev": "e1439ba6ec870405a7ab8e37642a78daab588529",
+        "rev": "05bcaa60f26954c9217391c63781dd6d2c291877",
         "type": "github"
       },
       "original": {
