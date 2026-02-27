@@ -20,9 +20,7 @@ export-env {
     __cur_snap_name: null
     __cur_depth_idx: 0
     depth_values: [999,3,2,1]
-    excluded: [
-      "**/.git/**" # Do not recurse into .git directories
-    ]
+    extra_fd_args: []
     colors: {
       separator: yellow
       active: light_green
@@ -242,12 +240,13 @@ export def --env switch-depth [--backwards (-b)] {
   $env.prowser.__cur_depth_idx = ($env.prowser.__cur_depth_idx + $incr) mod $len
 }
 
-# Glob $in pattern with fd
-export def --wrapped glob-with-fd [...extra_fd_args] {
+export def --wrapped expand-with-fd [...fd_args] {
+  let current_arg = $in
   (
-    ^fd --max-depth (selected-depth) --glob $in --absolute-path --hidden
-      ...($env.prowser.excluded | each -f {[-E $in]})
-      ...$extra_fd_args
+    ^fd --max-depth (selected-depth) --full-path
+      ...(if $current_arg != null {[($current_arg | path expand -n)]} else {[]})
+      ...$env.prowser.extra_fd_args
+      ...$fd_args
   ) | lines
 }
 
@@ -257,7 +256,7 @@ def then [cls: closure, --else (-e): any] {
   } else {$else}
 }
 
-export def select-paths [multi: bool, --prompt: string] {
+export def select-paths [--multi, --prompt: string] {
   let dir_clr = $env.config.color_config?.shape_filepath? | default "cyan"
   $in | rescope {
     let color_config_file = mkscoped file { mktemp -t --suffix .nuon }
@@ -313,14 +312,13 @@ export def select-paths [multi: bool, --prompt: string] {
   }
 }
 
-# Run an fzf-based file fuzzy finder on the paths listed by some closure
+# Run an fzf-based file fuzzy finder on the paths listed by some closure.
 #
-# If the commandline is empty, it will open the selected files. If not, it will
-# act as an auto-completer
-#
-# Set $env.prowser.excluded to select which patterns should be excluded
+# If the commandline is empty, it will open the selected files (open with $EDITOR if files, add to dirs list if folders).
+# If the cursor is on an argument, it will replace the current arg by the selected files.
+# Else, it will append the selected files.
 export def --env browse [
-  run_glob: closure
+  expand_current_arg: closure
   --multi
   --prompt: string
   --ignore-command
@@ -334,27 +332,9 @@ export def --env browse [
   let elems_before = $cmd |
     str substring 0..(commandline get-cursor) |
     split row -r '\s+'
-  let arg = match ($elems_before | reverse) {
-    [] => [$env.PWD "**/*"]
-    [$x ..$_] => {
-      if ($x | path type) == "dir" {
-        [$x "**/*"]
-      } else {
-        [($x | path dirname) $"($x | path basename)*/**"]
-      }
-    }
-  }
-  let selected = do {
-    cd $arg.0
-    let relative_to = $relative_to | path expand -n
-    $arg.1 | do $run_glob | do {
-      cd $relative_to
-      $in | path relative-to $env.PWD |
-        where {is-not-empty} |
-        select-paths $multi --prompt $prompt |
-        path expand -n
-    }
-  }
+  let selected = $elems_before | last | do $expand_current_arg |
+    where {is-not-empty} |
+    select-paths --multi=$multi --prompt=$prompt
   let selected_types = $selected | each {path expand | path type} | uniq
   match [$empty_cmd $selected $selected_types] {
     [_ [] _] => {}
@@ -376,7 +356,7 @@ export def --env browse [
 }
 
 export def --env down [] {
-  browse --multi --prompt dirs --ignore-command {glob-with-fd --type d}
+  browse --multi --prompt dirs --ignore-command {expand-with-fd --type d}
 }
 
 # To be called in your PROMPT_COMMAND
@@ -444,7 +424,7 @@ export def default-keybindings [
   [
     [modifier    keycode        event];
 
-    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)glob-with-fd}')]
+    [control     char_f         (cmd $'($prefix)browse --multi --prompt all {($prefix)expand-with-fd}')]
     [alt         [left char_h]  (cmd $'($prefix)left')]
     [alt         [right char_l] (cmd $'($prefix)right')]
     [alt         [up char_k]    (cmd $'($prefix)up')]
