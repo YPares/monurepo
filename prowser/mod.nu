@@ -242,13 +242,29 @@ export def --env switch-depth [--backwards (-b)] {
 }
 
 export def --wrapped expand-with-fd [...fd_args] {
-  let current_arg = $in
-  (
-    ^fd --max-depth (selected-depth) --full-path
-      ...(if $current_arg != null {[($current_arg | path expand -n)]} else {[]})
-      ...$env.prowser.extra_fd_args
-      ...$fd_args
-  ) | lines
+  match $in {
+    "" => {
+      ^fd --max-depth (selected-depth) ...$env.prowser.extra_fd_args ...$fd_args
+    }
+    $to_expand => {
+      let params = if ($to_expand | str ends-with /) {{
+        pattern: ""
+        search-root: $to_expand
+      }} else {
+        let comps = $to_expand | path split
+        {
+          search-root: ($comps | slice 0..<-1 | path join)
+          pattern: ($comps | last)
+        }
+      }
+      (
+        ^fd --max-depth (selected-depth) --full-path
+          $params.pattern $params.search-root
+          ...$env.prowser.extra_fd_args
+          ...$fd_args
+      )
+    }
+  } | lines
 }
 
 def then [cls: closure, --else (-e): any] {
@@ -273,7 +289,7 @@ export def select-paths [--multi, --prompt: string] {
     str join "\n" | (
       fzf --reverse --style default --info inline-right
           --height ($env.prowser.finder.max_height? | default {(term size).rows - 3})
-          ...($prompt | then {[--prompt $"($in)> "]} -e [])
+          ...($prompt | then {[--prompt $"($in)> "]})
           --ansi --color "pointer:magenta,marker:green"
           --tiebreak end
           --delimiter (char fs) --with-nth 1 --accept-nth 1

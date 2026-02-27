@@ -1,14 +1,12 @@
 use prowser
 
 # Finds the files modified in some revset that match some glob pattern
-#
-# Used for prowser integration
-export def expand-modified-in [revset] {
-  let current_arg = $in
+export def expand-with-modified-in [revset] {
+  let to_expand = $in
   let current_dir = $env.PWD
   let jj_root = ^jj root
-  let pattern = if $current_arg != null {
-    $current_arg | path expand | path relative-to $jj_root
+  let pattern = if $to_expand != null {
+    $to_expand | path expand | path relative-to $jj_root
   } else {""}
   cd $jj_root
   ( ^jj --no-graph
@@ -29,5 +27,5 @@ export def expand-modified-in [revset] {
 
 # Opens prowser with the list of the files modified in the given revset
 export def main [revset] {
-  prowser browse --multi --prompt $revset {expand-modified-in $revset}
+  prowser browse --multi --prompt $revset {expand-with-modified-in $revset}
 }
