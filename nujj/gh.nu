@@ -43,3 +43,19 @@ export def with-reviewer [githubHandle: string] {
     }
   }
 }
+
+export def --wrapped ci [
+  --revision (-r) = "@" # Which revision search runs for
+  ...args # Args for `gh run view` 
+] {
+  let runs = (
+    gh run list -c (jj -r $revision -T commit_id) --json databaseId,createdAt
+  ) |
+    from json |
+    update createdAt {into datetime} |
+    sort-by datetime -r
+  for run in $runs {
+    print $"(ansi yellow)# Run ($run.databaseId), created at ($run.createdAt)(ansi reset)"
+    gh run view $run.databaseId ...$args
+  }
+}
