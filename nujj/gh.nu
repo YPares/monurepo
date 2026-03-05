@@ -44,6 +44,7 @@ export def with-reviewer [githubHandle: string] {
   }
 }
 
+# Check the runs associated with a revision
 export def --wrapped ci [
   --revision (-r) = "@" # Which revision search runs for
   ...args # Args for `gh run view` 
@@ -58,4 +59,26 @@ export def --wrapped ci [
     print $"(ansi yellow)# Run ($run.databaseId), created at ($run.createdAt)(ansi reset)"
     gh run view $run.databaseId ...$args
   }
+}
+
+# Submit a revision as a PR. Base is autodetected
+export def --wrapped submit [
+  --head (-H) = "@-" # Which revision to use as PR head
+  ...args # Args for `gh pr create`
+] {
+  let head_bms = jj -r $head -GT local_bookmarks | split row " "
+  let base_bms =  jj -r $"heads\(::($head)- & remote_bookmarks\())" -GT local_bookmarks | split row " "
+  match $head_bms {
+    [_] => {}
+    _ => {
+      error make -u $"($head) should have exactly one bookmark"
+    }
+  }
+  match $base_bms {
+    [_] => {}
+    _ => {
+      error make -u $"Branch to use as base is ambiguous: found ($base_bms)"
+    }
+  }
+  gh pr create -H $head_bms.0 -B $base_bms.0 ...$args
 }
