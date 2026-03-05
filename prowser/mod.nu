@@ -33,6 +33,7 @@ export-env {
       max_height: 40
     }
     run_editor_on_empty_cmdline: true
+    ijkl_arrows: false
   }
 }
 
@@ -275,6 +276,13 @@ def then [cls: closure, --else (-e): any] {
 
 export def select-paths [--multi, --prompt: string] {
   let dir_clr = $env.config.color_config?.shape_filepath? | default "cyan"
+
+  let chrs = if $env.prowser.ijkl_arrows {
+    {up: i, down: k, left: j, right: l}
+  } else {
+    {up: k, down: j, left: h, right: l}
+  }
+  
   $in | rescope {
     let color_config_file = mkscoped file { mktemp -t --suffix .nuon }
     $env.config.color_config? | default {} | save -f $color_config_file
@@ -314,9 +322,9 @@ export def select-paths [--multi, --prompt: string] {
           --preview-window "right,60%,noinfo,border-left"
           --color "scrollbar:blue"
           --bind "ctrl-c:cancel,alt-q:abort"
-          --bind "alt-h:cancel,alt-j:down,alt-k:up,alt-l:accept"
+          --bind $"alt-($chrs.left):cancel,alt-($chrs.down):down,alt-($chrs.up):up,alt-($chrs.right):accept"
           --bind "alt-left:first,alt-right:accept,alt-up:half-page-up,alt-down:half-page-down"
-          --bind "ctrl-alt-k:half-page-up,ctrl-alt-j:half-page-down"
+          --bind $"ctrl-alt-($chrs.up):half-page-up,ctrl-alt-($chrs.down):half-page-down"
           --bind "alt-backspace:clear-query"
           --bind "ctrl-space:jump"
           --bind "ctrl-a:toggle-all"
@@ -442,21 +450,32 @@ export def default-keybindings [
   --prefix = "prowser "
     # Set this depending on how prowser is imported in your config.nu
 ] {
+  let chrs = if $env.prowser.ijkl_arrows {
+    {
+      up: char_i, down: char_k, left: char_j, right: char_l
+      drop: char_h
+    }
+  } else {
+    {
+      up: char_k, down: char_j, left: char_h, right: char_l
+      drop: char_i
+    }
+  }
   [
-    [modifier    keycode        event];
+    [modifier    keycode             event];
 
-    [control     char_f         (cmd $'($prefix)browse-all')]
-    [alt         [left char_h]  (cmd $'($prefix)left')]
-    [alt         [right char_l] (cmd $'($prefix)right')]
-    [alt         [up char_k]    (cmd $'($prefix)up')]
-    [alt         [down char_j]  (cmd $'($prefix)down')]
-    [shift_alt   [char_h]       (cmd $'($prefix)add $env.PWD')]
-    [shift_alt   [char_l]       (cmd $'($prefix)add --left $env.PWD')]
-    [shift_alt   [char_k]       (cmd $'($prefix)switch-depth')]
-    [shift_alt   [char_j]       (cmd $'($prefix)switch-depth --backwards')]
-    [alt         char_u         (cmd $'($prefix)reset')]
-    [alt         char_i         (cmd $'($prefix)drop')]
-    [alt         char_o         (cmd $'($prefix)drop --others')]
+    [control     char_f              (cmd $'($prefix)browse-all')]
+    [alt         [left $chrs.left]   (cmd $'($prefix)left')]
+    [alt         [right $chrs.right] (cmd $'($prefix)right')]
+    [alt         [up $chrs.up]       (cmd $'($prefix)up')]
+    [alt         [down $chrs.down]   (cmd $'($prefix)down')]
+    [shift_alt   [$chrs.left]        (cmd $'($prefix)add $env.PWD')]
+    [shift_alt   [$chrs.right]       (cmd $'($prefix)add --left $env.PWD')]
+    [shift_alt   [$chrs.up]          (cmd $'($prefix)switch-depth')]
+    [shift_alt   [$chrs.down]        (cmd $'($prefix)switch-depth --backwards')]
+    [alt         char_u              (cmd $'($prefix)reset')]
+    [alt         $chrs.drop          (cmd $'($prefix)drop')]
+    [alt         char_o              (cmd $'($prefix)drop --others')]
   ] | insert mode emacs | flatten modifier keycode
 }
 
