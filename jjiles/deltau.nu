@@ -34,6 +34,6 @@ export def layout-flags [side_by_side_threshold: int] {
 }
 
 # Run delta with theme and layout detection
-export def --wrapped wrapper [--side-by-side-threshold (-s): int = 130, ...args] {
+export def --wrapped wrapper [--side-by-side-threshold (-s): int = 160, ...args] {
   ^delta ...(theme-flags) ...(layout-flags $side_by_side_threshold) ...$args
 }
