@@ -58,6 +58,14 @@ export def --env right [--reset (-r)] {
   dirs next
 }
 
+export def --env leftmost [] {
+  dirs goto 0
+}
+
+export def --env rightmost [] {
+  dirs goto (($env.DIRS_LIST | length) - 1)
+}
+
 export def --env up [] {
   cd ..
 }
@@ -469,6 +477,8 @@ export def default-keybindings [
     [alt         [right $chrs.right] (cmd $'($prefix)right')]
     [alt         [up $chrs.up]       (cmd $'($prefix)up')]
     [alt         [down $chrs.down]   (cmd $'($prefix)down')]
+    [alt         home                (cmd $'($prefix)leftmost')]
+    [alt         end                 (cmd $'($prefix)rightmost')]
     [shift_alt   [$chrs.left]        (cmd $'($prefix)add $env.PWD')]
     [shift_alt   [$chrs.right]       (cmd $'($prefix)add --left $env.PWD')]
     [shift_alt   [$chrs.up]          (cmd $'($prefix)switch-depth')]
