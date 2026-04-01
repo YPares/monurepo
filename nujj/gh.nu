@@ -54,7 +54,7 @@ export def --wrapped ci [
   ) |
     from json |
     update createdAt {into datetime} |
-    sort-by datetime -r
+    sort-by createdAt -r
   for run in $runs {
     print $"(ansi yellow)# Run ($run.databaseId), created at ($run.createdAt)(ansi reset)"
     gh run view $run.databaseId ...$args
