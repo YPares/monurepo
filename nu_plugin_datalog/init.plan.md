@@ -109,7 +109,7 @@ input and returns derived facts as Nushell tables.
 let state = datalog reason --rules-file rules.rls
 
 # Export specific predicates
-$state | datalog export [ancestor reachable]
+$state | datalog export ancestor reachable
 
 # Export all derived predicates
 $state | datalog export --all
@@ -122,7 +122,7 @@ $state | datalog export
 
 | Parameter  | Type          | Description                                                      |
 | ---------- | ------------- | ---------------------------------------------------------------- |
-| predicates | list\<string\> | Positional: list of predicate names to export                   |
+| predicates | string...      | Positional: predicate names to export (space-separated)        |
 | `--all`    | switch        | Export ALL derived predicates (IDB)                               |
 
 If neither `predicates` nor `--all` is given, exports the predicates from `@export`
@@ -469,10 +469,10 @@ nushellWith.lib.makeNuPlugin {
 
 ## Implementation phases
 
-### Phase 1: Minimal viable plugin
+### Phase 1: Minimal viable plugin: DONE
 - `datalog reason` with `--rules` (inline string only), no pipeline input
 - Inline facts in the rules string only
-- `datalog export [pred]` with a positional list of predicate names
+- `datalog export <pred>...` with positional predicate names (space-separated)
 - Store engine in plugin HashMap, return DatalogState handle
 - No `--rules-file`, no `--as`, no `--all`
 
