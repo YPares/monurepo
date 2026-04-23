@@ -1,0 +1,12 @@
+[package]
+name = "nu_plugin_datalog"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nu-plugin = "0.112"
+nu-protocol = "0.112"
+nemo = { git = "https://github.com/knowsys/nemo", tag = "v0.10.0" }
+tokio = { version = "1", features = ["rt", "macros"] }
+serde = { version = "1", features = ["derive"] }
+typetag = "0.2"
