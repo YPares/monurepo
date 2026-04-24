@@ -476,7 +476,7 @@ nushellWith.lib.makeNuPlugin {
 - Store engine in plugin HashMap, return DatalogState handle
 - No `--rules-file`, no `--as`, no `--all`
 
-### Phase 2: Pipeline integration
+### Phase 2: Pipeline integration DONE
 - Accept record of tables as pipeline input → facts for multiple predicates
 - `--as` shorthand for piping a single table
 - `--rules-file` for file paths
@@ -491,7 +491,7 @@ nushellWith.lib.makeNuPlugin {
 - Column name inference from `@declare`
 - Nix packaging via flake
 
-### Phase 4: Advanced (if useful)
+### Phase 4: Advanced
 - Incremental reasoning: add facts without recomputing everything
 - Tracing support (`--trace "ancestor(alice,?X)"`)
 - SPARQL import passthrough
