@@ -20,7 +20,10 @@ impl CustomValue for DatalogState {
     }
 
     fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
-        Ok(Value::string(format!("datalog-state({})", self.engine_id), span))
+        Ok(Value::string(
+            format!("datalog-state({})", self.engine_id),
+            span,
+        ))
     }
 
     fn as_any(&self) -> &dyn Any {
