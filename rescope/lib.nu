@@ -60,7 +60,7 @@ export def rescope [
     # '--scope' argument for subsequent 'mkscoped' calls
 ] {
   let controls_closure_store_job = if $env.rescope?.closure-store-job-id? == null {
-    $env.rescope.closure-store-job-id = job spawn --tag "closure-store" { run-closure-store }
+    $env.rescope.closure-store-job-id = job spawn -d "closure-store" { run-closure-store }
     true
   } else { false }
 
