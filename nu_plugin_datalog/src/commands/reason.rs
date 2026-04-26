@@ -1,4 +1,7 @@
 use nemo::datavalues::AnyDataValue;
+use nemo::rule_model::components::fact::Fact;
+use nemo::rule_model::components::tag::Tag;
+use nemo::rule_model::components::term::Term;
 use nu_plugin::{EngineInterface, EvaluatedCall, SimplePluginCommand};
 use nu_protocol::{Category, LabeledError, Signature, Span, SyntaxShape, Value};
 use std::collections::HashMap;
@@ -96,18 +99,15 @@ impl SimplePluginCommand for Reason {
             .build()
             .map_err(|e| LabeledError::new(format!("tokio runtime error: {e}")))?;
 
-        let mut program = nemo::api::load_program(rules_text.clone(), String::new())
+        let mut program = nemo::api::load_program(rules_text, String::new())
             .map_err(|e| LabeledError::new(format!("failed to parse rules: {e}")))?;
 
         // Inject facts into the program
-        for (predicate, rows) in &input_facts {
-            let tag = nemo::rule_model::components::tag::Tag::new(predicate.clone());
+        for (predicate, rows) in input_facts {
+            let tag = Tag::new(predicate);
             for row in rows {
-                let terms: Vec<nemo::rule_model::components::term::Term> = row
-                    .iter()
-                    .map(|dv| nemo::rule_model::components::term::Term::from(dv.clone()))
-                    .collect();
-                let fact = nemo::rule_model::components::fact::Fact::new(tag.clone(), terms);
+                let terms: Vec<Term> = row.into_iter().map(|dv| Term::from(dv)).collect();
+                let fact = Fact::new(tag.clone(), terms);
                 nemo::rule_model::programs::ProgramWrite::add_fact(&mut program, fact);
             }
         }
