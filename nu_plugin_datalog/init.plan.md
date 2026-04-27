@@ -76,8 +76,9 @@ datalog reason --rules-file rules.rls
   company: [[col0]; [acme] [globex]],
 } | datalog reason --rules-file rules.rls
 
-# Single predicate shorthand — pipe a plain table, name it with --as
-open people.csv | datalog reason --rules-file rules.rls --as person
+# Pipe a plain table — first column is the predicate name
+[[predicate col1 col2]; [parent alice bob] [parent bob carol] [company acme]]
+| datalog reason --rules-file rules.rls
 ```
 
 **Parameters:**
@@ -86,7 +87,6 @@ open people.csv | datalog reason --rules-file rules.rls --as person
 | --------------- | -------- | ------------------------------------------------------------------ |
 | `--rules`       | string   | Inline Datalog rules (exclusive with `--rules-file`)               |
 | `--rules-file`  | filepath | Path to a `.rls` file (exclusive with `--rules`)                   |
-| `--as`          | string   | Name for pipeline input when piping a single table (not a record)  |
 
 `--rules` and `--rules-file` are mutually exclusive. Exactly one is required.
 
@@ -94,8 +94,9 @@ open people.csv | datalog reason --rules-file rules.rls --as person
 
 - **Record of tables:** keys = predicate names, values = tables of fact rows. This is the
   primary form — it maps directly to Nemo's `HashMap<Tag, SimpleTable>`.
-- **Single table:** requires `--as <name>` to assign a predicate name. Syntactic sugar for
-  `{<name>: $input}`.
+- **List/table or stream of records:** the first column of each row is the predicate name,
+  and the remaining columns are the fact terms. This allows mixing multiple predicates in a
+  single streamed input without accumulating everything into a record first.
 
 **Output:** A `datalog-state` custom value (opaque handle).
 
@@ -339,8 +340,8 @@ impl DatalogEngine {
 
 ### Data flow: pipeline input → facts
 
-Pipeline input can be a record of tables or (with `--as`) a single table. Either way, the
-plugin builds a `HashMap<String, Vec<Vec<AnyDataValue>>>`:
+Pipeline input can be a record of tables, a list/table of records, or a stream of records.
+The plugin builds a `HashMap<String, Vec<Vec<AnyDataValue>>>`:
 
 **Record of tables** (primary form):
 ```nushell
@@ -351,11 +352,15 @@ plugin builds a `HashMap<String, Vec<Vec<AnyDataValue>>>`:
 ```
 → `{"parent": [["alice","bob"], ["bob","carol"]], "company": [["acme"]]}`
 
-**Single table + `--as`** (sugar):
+**List/table with predicate in first column:**
 ```nushell
-open people.csv | datalog reason --rules-file rules.rls --as person
+[[predicate col0 col1]; [parent alice bob] [parent bob carol] [company acme]]
+| datalog reason --rules-file rules.rls
 ```
-→ `{"person": [<rows from people.csv>]}`
+→ `{"parent": [["alice","bob"], ["bob","carol"]], "company": [["acme"]]}`
+
+This form also works with streamed lists, because `datalog reason` implements
+`PluginCommand` and consumes `PipelineData::ListStream` row-by-row.`
 
 The facts are injected directly into the [`Program`](https://github.com/knowsys/nemo/blob/main/nemo/src/rule_model/programs/program.rs) before creating the engine:
 
@@ -478,10 +483,10 @@ nushellWith.lib.makeNuPlugin {
 
 ### Phase 2: Pipeline integration DONE
 - Accept record of tables as pipeline input → facts for multiple predicates
-- `--as` shorthand for piping a single table
+- Accept list/table/stream where first column is the predicate name
 - `--rules-file` for file paths
 - `--all` flag on `datalog export`
-- Convert `Value::record` → `HashMap<Tag, Vec<Fact>>` → inject into `Program`
+- Convert `Value::record` or stream → `HashMap<Tag, Vec<Fact>>` → inject into `Program`
 - Multiple predicates returned as record of tables (always a record, even single)
 
 ### Phase 3: Polish
