@@ -183,17 +183,10 @@ fn row_to_fact(value: &Value, _span: Span) -> Result<(String, Vec<AnyDataValue>)
             .with_label("each element must be a record", value.span())
     })?;
 
-    if record.is_empty() {
-        return Err(
-            LabeledError::new("empty record in pipeline input").with_label(
-                "each row must have at least a predicate column",
-                value.span(),
-            ),
-        );
-    }
-
-    let mut iter = record.iter();
-    let (pred_col, pred_val) = iter.next().expect("record is non-empty");
+    let (pred_col, pred_val) = record.iter().next().ok_or_else(|| {
+        LabeledError::new("empty record in pipeline input")
+            .with_label("each row must have at least a predicate column", value.span())
+    })?;
 
     let pred_name = pred_val.as_str().map_err(|_| {
         LabeledError::new("predicate name must be a string").with_label(
@@ -202,15 +195,12 @@ fn row_to_fact(value: &Value, _span: Span) -> Result<(String, Vec<AnyDataValue>)
         )
     })?;
 
-    let mut row = Vec::new();
-    for (_col_name, col_val) in iter {
-        match nu_value_to_nemo(col_val)? {
-            Some(dv) => row.push(dv),
-            None => {
-                // Nothing values are skipped
-            }
-        }
-    }
+    let row: Vec<AnyDataValue> = record
+        .iter()
+        .skip(1)
+        .map(|(_, col_val)| nu_value_to_nemo(col_val))
+        .filter_map(|r| r.transpose())
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok((pred_name.to_string(), row))
 }
@@ -227,18 +217,23 @@ fn value_to_rules_string(value: &Value) -> Result<String, LabeledError> {
                 LabeledError::new("expected list")
                     .with_label("--rules list must contain strings", value.span())
             })?;
-            let mut parts = Vec::with_capacity(list.len());
-            for item in list {
-                let s = item.as_str().map_err(|_| {
-                    LabeledError::new("expected string in --rules list")
-                        .with_label("each element must be a string", item.span())
-                })?;
-                parts.push(format!("{}.", s));
-            }
-            Ok(parts.join(" "))
+            let parts: Result<Vec<String>, LabeledError> = list
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .map(|s| format!("{}.", s))
+                        .map_err(|_| {
+                            LabeledError::new("expected string in --rules list")
+                                .with_label("each element must be a string", item.span())
+                        })
+                })
+                .collect();
+            Ok(parts?.join(" "))
         }
-        _ => Err(LabeledError::new("invalid --rules value")
-            .with_label("expected a string or a list of strings", value.span())),
+        _ => Err(LabeledError::new("invalid --rules value").with_label(
+            "expected a string or a list of strings",
+            value.span(),
+        )),
     }
 }
 
@@ -255,23 +250,18 @@ fn table_to_rows(
             .with_label("value must be a list of records", value.span())
     })?;
 
-    let mut rows = Vec::with_capacity(list.len());
-    for row_val in list {
-        let record = row_val.as_record().map_err(|_| {
-            LabeledError::new(format!("expected record row in table for '{pred_name}'"))
-                .with_label("each element must be a record", row_val.span())
-        })?;
+    list.iter()
+        .map(|row_val| {
+            let record = row_val.as_record().map_err(|_| {
+                LabeledError::new(format!("expected record row in table for '{pred_name}'"))
+                    .with_label("each element must be a record", row_val.span())
+            })?;
 
-        let mut row = Vec::with_capacity(record.len());
-        for (_col_name, col_val) in record.iter() {
-            match nu_value_to_nemo(col_val)? {
-                Some(dv) => row.push(dv),
-                None => {
-                    // Nothing values are skipped
-                }
-            }
-        }
-        rows.push(row);
-    }
-    Ok(rows)
+            record
+                .iter()
+                .map(|(_, col_val)| nu_value_to_nemo(col_val))
+                .filter_map(|r| r.transpose())
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect()
 }
