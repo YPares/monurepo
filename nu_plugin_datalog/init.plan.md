@@ -85,10 +85,10 @@ datalog reason --rules-file rules.rls
 
 | Parameter       | Type     | Description                                                        |
 | --------------- | -------- | ------------------------------------------------------------------ |
-| `--rules`       | string   | Inline Datalog rules (exclusive with `--rules-file`)               |
-| `--rules-file`  | filepath | Path to a `.rls` file (exclusive with `--rules`)                   |
+| `--rules`       | string   | Inline Datalog rules (exclusive with `--rules-file`, optional)     |
+| `--rules-file`  | filepath | Path to a `.rls` file (exclusive with `--rules`, optional)         |
 
-`--rules` and `--rules-file` are mutually exclusive. Exactly one is required.
+`--rules` and `--rules-file` are mutually exclusive. If neither is given, the rules default to an empty string (facts-only reasoning).
 
 **Input:** Optional. Two forms:
 

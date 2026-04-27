@@ -71,12 +71,7 @@ impl PluginCommand for Reason {
                 };
                 RulesSource::File(path)
             }
-            (None, None) => {
-                return Err(
-                    LabeledError::new("missing required flag --rules or --rules-file")
-                        .with_label("provide inline rules or a rules file", call.head),
-                );
-            }
+            (None, None) => RulesSource::Inline(String::new()),
         };
 
         let rules_text = rules_source
