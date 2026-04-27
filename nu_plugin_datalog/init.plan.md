@@ -67,6 +67,9 @@ that can be passed to `datalog export`.
 # Rules only — facts inline in the rules string
 datalog reason --rules 'p(a,b). p(b,c). q(?X,?Z) :- p(?X,?Y), p(?Y,?Z).'
 
+# Rules as a list of strings (dots are auto-added)
+datalog reason --rules ['p(a,b)' 'p(b,c)' 'q(?X,?Z) :- p(?X,?Y), p(?Y,?Z)']
+
 # Rules from file
 datalog reason --rules-file rules.rls
 
@@ -85,7 +88,7 @@ datalog reason --rules-file rules.rls
 
 | Parameter       | Type     | Description                                                        |
 | --------------- | -------- | ------------------------------------------------------------------ |
-| `--rules`       | string   | Inline Datalog rules (exclusive with `--rules-file`, optional)     |
+| `--rules`       | string or list<string> | Inline Datalog rules string, or list of rule strings (dots auto-added, exclusive with `--rules-file`, optional) |
 | `--rules-file`  | filepath | Path to a `.rls` file (exclusive with `--rules`, optional)         |
 
 `--rules` and `--rules-file` are mutually exclusive. If neither is given, the rules default to an empty string (facts-only reasoning).

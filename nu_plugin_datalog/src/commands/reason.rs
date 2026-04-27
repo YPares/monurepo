@@ -27,8 +27,8 @@ impl PluginCommand for Reason {
         Signature::build(self.name())
             .named(
                 "rules",
-                SyntaxShape::String,
-                "Inline Datalog rules string",
+                SyntaxShape::Any,
+                "Inline Datalog rules string, or list of rule strings",
                 Some('r'),
             )
             .named(
@@ -48,7 +48,7 @@ impl PluginCommand for Reason {
         input: PipelineData,
     ) -> Result<PipelineData, LabeledError> {
         // --- Resolve rules source ---
-        let rules_flag: Option<String> = call.get_flag("rules")?;
+        let rules_flag: Option<Value> = call.get_flag("rules")?;
         let rules_file_flag: Option<String> = call.get_flag("rules-file")?;
 
         let rules_source = match (rules_flag, rules_file_flag) {
@@ -58,7 +58,10 @@ impl PluginCommand for Reason {
                         .with_label("provide exactly one of --rules or --rules-file", call.head),
                 );
             }
-            (Some(rules), None) => RulesSource::Inline(rules),
+            (Some(rules_val), None) => {
+                let rules_text = value_to_rules_string(&rules_val)?;
+                RulesSource::Inline(rules_text)
+            }
             (None, Some(path)) => {
                 let path = std::path::PathBuf::from(path);
                 let path = if path.is_relative() {
@@ -210,6 +213,33 @@ fn row_to_fact(value: &Value, _span: Span) -> Result<(String, Vec<AnyDataValue>)
     }
 
     Ok((pred_name.to_string(), row))
+}
+
+/// Convert a `--rules` flag value into a single Datalog rules string.
+///
+/// - String: returned as-is
+/// - List of strings: each element gets a '.' appended, then concatenated
+fn value_to_rules_string(value: &Value) -> Result<String, LabeledError> {
+    match value {
+        Value::String { val, .. } => Ok(val.clone()),
+        Value::List { .. } => {
+            let list = value.as_list().map_err(|_| {
+                LabeledError::new("expected list")
+                    .with_label("--rules list must contain strings", value.span())
+            })?;
+            let mut parts = Vec::with_capacity(list.len());
+            for item in list {
+                let s = item.as_str().map_err(|_| {
+                    LabeledError::new("expected string in --rules list")
+                        .with_label("each element must be a string", item.span())
+                })?;
+                parts.push(format!("{}.", s));
+            }
+            Ok(parts.join(" "))
+        }
+        _ => Err(LabeledError::new("invalid --rules value")
+            .with_label("expected a string or a list of strings", value.span())),
+    }
 }
 
 /// Convert a Nushell table value into Vec<Vec<AnyDataValue>>.
