@@ -2,8 +2,8 @@ use nemo::datavalues::AnyDataValue;
 use nemo::rule_model::components::fact::Fact;
 use nemo::rule_model::components::tag::Tag;
 use nemo::rule_model::components::term::Term;
-use nu_plugin::{EngineInterface, EvaluatedCall, SimplePluginCommand};
-use nu_protocol::{Category, LabeledError, Signature, Span, SyntaxShape, Value};
+use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
+use nu_protocol::{Category, LabeledError, PipelineData, Signature, Span, SyntaxShape, Value};
 use std::collections::HashMap;
 
 use crate::conversion::nu_value_to_nemo;
@@ -12,7 +12,7 @@ use crate::rules_source::RulesSource;
 
 pub struct Reason;
 
-impl SimplePluginCommand for Reason {
+impl PluginCommand for Reason {
     type Plugin = DatalogPlugin;
 
     fn name(&self) -> &str {
@@ -37,12 +37,6 @@ impl SimplePluginCommand for Reason {
                 "Path to a Datalog rules file",
                 Some('f'),
             )
-            .named(
-                "as",
-                SyntaxShape::String,
-                "Name for a single table piped in (not a record)",
-                Some('a'),
-            )
             .category(Category::Experimental)
     }
 
@@ -51,8 +45,8 @@ impl SimplePluginCommand for Reason {
         plugin: &DatalogPlugin,
         engine: &EngineInterface,
         call: &EvaluatedCall,
-        input: &Value,
-    ) -> Result<Value, LabeledError> {
+        input: PipelineData,
+    ) -> Result<PipelineData, LabeledError> {
         // --- Resolve rules source ---
         let rules_flag: Option<String> = call.get_flag("rules")?;
         let rules_file_flag: Option<String> = call.get_flag("rules-file")?;
@@ -66,7 +60,6 @@ impl SimplePluginCommand for Reason {
             }
             (Some(rules), None) => RulesSource::Inline(rules),
             (None, Some(path)) => {
-                // Resolve relative paths against the current working directory
                 let path = std::path::PathBuf::from(path);
                 let path = if path.is_relative() {
                     let cwd = engine
@@ -91,7 +84,7 @@ impl SimplePluginCommand for Reason {
             .map_err(|e| LabeledError::new(format!("failed to read rules: {e}")))?;
 
         // --- Parse pipeline input into facts ---
-        let input_facts = parse_pipeline_input(input, call)?;
+        let input_facts = collect_facts(input, call.head)?;
 
         // --- Build program, inject facts, create engine, reason ---
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -102,7 +95,6 @@ impl SimplePluginCommand for Reason {
         let mut program = nemo::api::load_program(rules_text, String::new())
             .map_err(|e| LabeledError::new(format!("failed to parse rules: {e}")))?;
 
-        // Inject facts into the program
         for (predicate, rows) in input_facts {
             let tag = Tag::new(predicate);
             for row in rows {
@@ -123,59 +115,111 @@ impl SimplePluginCommand for Reason {
             .map_err(|e| LabeledError::new(format!("reasoning failed: {e}")))?;
 
         let state = plugin.store_engine(exec_engine);
-        Ok(Value::custom(Box::new(state), call.head))
+        Ok(PipelineData::Value(
+            Value::custom(Box::new(state), call.head),
+            None,
+        ))
     }
 }
 
-/// Parse the pipeline input into a HashMap<predicate_name, Vec<Vec<AnyDataValue>>>.
+/// Collect facts from pipeline input into a HashMap<predicate_name, Vec<Vec<AnyDataValue>>>.
 ///
 /// Supported input forms:
 /// - Nothing (no pipeline input) -> empty facts
 /// - Record of tables: {pred1: [[..]; ..], pred2: [[..]; ..]} -> facts per predicate
-/// - Single table (requires `--as` flag) -> facts under the given name
-fn parse_pipeline_input(
-    input: &Value,
-    call: &EvaluatedCall,
+/// - List/table or stream of records: first column of each row is the predicate name,
+///   remaining columns are the fact terms. This allows mixing predicates in one stream.
+fn collect_facts(
+    input: PipelineData,
+    span: Span,
 ) -> Result<HashMap<String, Vec<Vec<AnyDataValue>>>, LabeledError> {
-    if input.is_nothing() {
-        return Ok(HashMap::new());
-    }
+    let mut facts = HashMap::new();
 
     match input {
-        Value::Record { val, .. } => {
-            let mut facts = HashMap::with_capacity(val.len());
-            for (pred_name, table_val) in val.iter() {
-                let rows = table_to_rows(table_val, call.head, pred_name)?;
-                facts.insert(pred_name.clone(), rows);
+        PipelineData::Empty => Ok(facts),
+        PipelineData::Value(value, _) => match value {
+            Value::Record { val, .. } => {
+                for (pred_name, table_val) in val.iter() {
+                    let rows = table_to_rows(table_val, span, pred_name)?;
+                    facts.entry(pred_name.clone()).or_default().extend(rows);
+                }
+                Ok(facts)
+            }
+            Value::List { .. } => {
+                let list = value.as_list().map_err(|_| {
+                    LabeledError::new("expected list")
+                        .with_label("pipeline input must be a list of records", value.span())
+                })?;
+                for row_val in list {
+                    let (pred_name, row) = row_to_fact(row_val, span)?;
+                    facts.entry(pred_name).or_default().push(row);
+                }
+                Ok(facts)
+            }
+            _ => Err(LabeledError::new("invalid pipeline input").with_label(
+                "expected a record of tables, a list of records, or nothing",
+                value.span(),
+            )),
+        },
+        PipelineData::ListStream(stream, _) => {
+            for row_val in stream {
+                let (pred_name, row) = row_to_fact(&row_val, span)?;
+                facts.entry(pred_name).or_default().push(row);
             }
             Ok(facts)
         }
-        Value::List { .. } => {
-            let as_name: Option<String> = call.get_flag("as")?;
-            match as_name {
-                Some(name) => {
-                    let rows = table_to_rows(input, call.head, &name)?;
-                    let mut facts = HashMap::new();
-                    facts.insert(name, rows);
-                    Ok(facts)
-                }
-                None => Err(LabeledError::new(
-                    "piping a single table requires --as <predicate_name>",
-                )
-                .with_label(
-                    "use --as to name the predicate, or pipe a record of tables",
-                    call.head,
-                )),
-            }
-        }
-        _ => Err(LabeledError::new("invalid pipeline input").with_label(
-            "expected a record of tables, a single table (with --as), or nothing",
-            input.span(),
+        _ => Err(LabeledError::new("unsupported pipeline input").with_label(
+            "expected a record of tables, a list of records, or nothing",
+            span,
         )),
     }
 }
 
-/// Convert a Nushell list/table value into Vec<Vec<AnyDataValue>>.
+/// Convert a single Nushell record into (predicate_name, fact_terms).
+///
+/// The first column is interpreted as the predicate name (must be a string).
+/// All remaining columns become fact terms.
+fn row_to_fact(value: &Value, _span: Span) -> Result<(String, Vec<AnyDataValue>), LabeledError> {
+    let record = value.as_record().map_err(|_| {
+        LabeledError::new("expected record row in pipeline input")
+            .with_label("each element must be a record", value.span())
+    })?;
+
+    if record.is_empty() {
+        return Err(
+            LabeledError::new("empty record in pipeline input").with_label(
+                "each row must have at least a predicate column",
+                value.span(),
+            ),
+        );
+    }
+
+    let mut iter = record.iter();
+    let (pred_col, pred_val) = iter.next().expect("record is non-empty");
+
+    let pred_name = pred_val.as_str().map_err(|_| {
+        LabeledError::new("predicate name must be a string").with_label(
+            format!("the first column ('{pred_col}') must contain a string predicate name"),
+            value.span(),
+        )
+    })?;
+
+    let mut row = Vec::new();
+    for (_col_name, col_val) in iter {
+        match nu_value_to_nemo(col_val)? {
+            Some(dv) => row.push(dv),
+            None => {
+                // Nothing values are skipped
+            }
+        }
+    }
+
+    Ok((pred_name.to_string(), row))
+}
+
+/// Convert a Nushell table value into Vec<Vec<AnyDataValue>>.
+///
+/// All columns are treated as fact terms (no predicate column).
 fn table_to_rows(
     value: &Value,
     _span: Span,
@@ -198,8 +242,7 @@ fn table_to_rows(
             match nu_value_to_nemo(col_val)? {
                 Some(dv) => row.push(dv),
                 None => {
-                    // Nothing values are skipped; warn if they appear in the middle
-                    // (Nemo doesn't have null, so we just skip)
+                    // Nothing values are skipped
                 }
             }
         }
