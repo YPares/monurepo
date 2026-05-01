@@ -62,12 +62,13 @@ pub fn nemo_value_to_nu(dv: &AnyDataValue, span: Span) -> Value {
     }
 }
 
-/// Convert a row of AnyDataValues into a Nushell record with columns col0, col1, ...
-pub fn fact_row_to_record(row: Vec<AnyDataValue>, span: Span) -> Value {
+/// Convert a predicate name and a row of AnyDataValues into a Nushell record
+/// shaped as `{predicate: <name>, col0: <val>, col1: <val>, ...}`.
+pub fn fact_row_to_flat_record(pred_name: &str, row: Vec<AnyDataValue>, span: Span) -> Value {
     let mut record = Record::new();
+    record.push("predicate", Value::string(pred_name.to_string(), span));
     for (i, val) in row.iter().enumerate() {
-        let col_name = format!("col{i}");
-        record.push(col_name, nemo_value_to_nu(val, span));
+        record.push(format!("col{i}"), nemo_value_to_nu(val, span));
     }
     Value::record(record, span)
 }
