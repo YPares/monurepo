@@ -106,7 +106,7 @@ datalog reason --rules-file rules.rls
 ### `datalog export`
 
 Extract facts from a previously computed engine state. Takes a state handle as pipeline
-input and returns derived facts as Nushell tables.
+input and returns derived facts as a **stream of flat records**.
 
 ```nushell
 # Reason once, export different predicates without recomputing
@@ -135,9 +135,11 @@ directives in the rules file
 
 **Input:** A `datalog-state` custom value (from `datalog reason`).
 
-**Output:** A **record of tables** keyed by predicate name, even for a single predicate.
-This is consistent and avoids surprising shape changes when the user adds/removes a
-predicate name from the list.
+**Output:** A **stream of flat records** shaped as
+`{predicate: <name>, col0: <val>, col1: <val>, ...}`. Each record corresponds to one
+fact row, with the predicate name in the first column. This is the same format that
+`datalog reason` accepts as input (list/table with predicate in first column), enabling
+natural round-tripping.
 
 Columns are named `col0`, `col1`, ... (future: infer from `@declare` directives).
 
@@ -389,7 +391,7 @@ works internally — it groups facts by predicate into a
 No [`ResourceProvider`](https://github.com/knowsys/nemo/blob/main/nemo/src/io/resource_providers.rs)
 implementation needed.
 
-### Data flow: state → export → Nushell table
+### Data flow: state → export → Nushell stream
 
 In `datalog export`:
 
@@ -399,16 +401,17 @@ In `datalog export`:
    - Positional `predicates` list → explicit
    - `--all` → all derived predicates
    - default → predicates from `@export` directives
-4. For each predicate, call [`engine.predicate_rows(&tag)`](https://github.com/knowsys/nemo/blob/main/nemo/src/execution/execution_engine.rs) → `Iterator<Item = Vec<AnyDataValue>>`
-5. Convert each row to `Value::record` with columns `col0`, `col1`, ...
+4. For each predicate, call [`engine.predicate_rows(&tag)`](https://github.com/knowsys/nemo/blob/main/nemo/src/execution/execution_engine.rs) → `Iterator<Item = Vec<AnyDataValue>>`, then eagerly collect per-predicate (the iterator borrows the engine, which is `!Send`, so it cannot escape the engine lock)
+5. Flatten all per-predicate rows into a single `ListStream` of `{predicate, col0, col1, ...}` records
+6. Pass `engine_interface.signals()` to the `ListStream` for Ctrl+C support
 
-**Output shape:** always a **record of tables** keyed by predicate name, regardless of how
-many predicates are exported:
+**Output shape:** a **stream of flat records**, each shaped like:
 ```nushell
-{ancestor: [[col0 col1]; [alice bob] [alice carol]], reachable: [[col0 col1]; [...]]}
+{predicate: ancestor, col0: alice, col1: bob}
+{predicate: reachable, col0: alice, col1: carol}
 ```
-Even a single predicate returns `{ancestor: [...]}` — consistent shape, no surprises when
-adding/removing predicate names.
+The predicate name appears in every row (first column). This matches the input format
+expected by `datalog reason`, making round-tripping natural.
 
 ## Dependencies
 
@@ -460,7 +463,9 @@ nushellWith.lib.makeNuPlugin {
    `DatalogState::notify_plugin_on_drop()` returns `true`, Nushell sends a `Dropped`
    notification when all copies are GC'd, plugin removes the engine. Idempotent.
 
-3. **Output shape.** Resolved: always a record of tables, even for a single predicate.
+3. **Output shape.** Resolved: stream of flat `{predicate, col0, col1, ...}` records.
+   No more record-of-tables output — the flat format matches `datalog reason`'s input
+   convention, enabling natural round-tripping.
 
 4. **Column names.** Can we extract them from `@declare` directives in the program?
    Or always use `col0`, `col1`, ...? Should the record-of-tables input preserve column
