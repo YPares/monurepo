@@ -90,6 +90,17 @@ export def --env record-and-render [
   record --force=$force | do $env.repage.display_output 
 }
 
+# Install repage as display_output hook.
+# In this mode, command outputs cannot stream their output anymore.
+export def --env on [] {
+  $env.config.hooks.display_output = {|| record-and-render}
+}
+
+# Remove current display_output hook.
+export def --env off [] {
+  $env.config.hooks.display_output = null
+}
+
 # Record the value fed via pipeline input, if this value fits some conditions,
 # and return it
 export def --env record [
