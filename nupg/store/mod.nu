@@ -1,12 +1,12 @@
 use internals.nu *
 use ../build.nu
-use ../run.nu
+use ../run.nu run_
 use ../pretty.nu 
 
 # Add a query to the store file
 export def main [name: string]: string -> nothing {
   let query = $in | pretty format
-  let cols = $query | run desc
+  let cols = $query | run_ desc
   get-store |
     merge {$name: {query: $query, columns: $cols}} |
     save -f $env.nupg.store

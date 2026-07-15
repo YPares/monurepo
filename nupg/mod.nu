@@ -13,6 +13,9 @@ export use store
 use build.nu [
   complete-build
 ]
+use run.nu [
+  run_
+]
 
 export-env {
   # By default, will connect on local UNIX socket to the 'postgres' database
@@ -116,5 +119,5 @@ export def main [
     # Values to use to replace the $1, $2, $3, etc. placeholders
     # in the query.
 ]: nothing -> list<any> {
-  build ...$tokens | run --variables=$variables ...$parameters
+  build ...$tokens | run_ --variables=$variables ...$parameters
 }

@@ -149,3 +149,5 @@ export def main [
   } |
     raw --variables=$variables ...$params | run-updates $nu_conversions
 }
+
+export alias run_ = main

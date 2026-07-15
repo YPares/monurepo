@@ -1,4 +1,4 @@
-use std log
+use std/log
 
 # We start a job that will maintain stacks of closures,
 # each one indexed by some arbitrary string key

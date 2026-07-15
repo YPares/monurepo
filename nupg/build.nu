@@ -104,7 +104,7 @@ export def complete-build [cmdline pos] {
         {
           value: $"($tbl.table_name).($col.column_name)"
           style: {fg: blue}
-          description: $"($col.pg_type | str upcase)($null_bit)"
+          description: $"($col.pg_type | str uppercase)($null_bit)"
         }
       }
     }

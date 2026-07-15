@@ -14,7 +14,7 @@ export def stored-queries [
 
 export def cols-to-desc []: table<column_name: string, pg_type: string> -> string {
   each {|col|
-    $"($col.column_name) ($col.pg_type | str upcase)"
+    $"($col.column_name) ($col.pg_type | str uppercase)"
   } | str join ", "
 }
 
