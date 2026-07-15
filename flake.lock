@@ -8,11 +8,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1771437256,
-        "narHash": "sha256-bLqwib+rtyBRRVBWhMuBXPCL/OThfokA+j6+uH7jDGU=",
+        "lastModified": 1776249299,
+        "narHash": "sha256-Dt9t1TGRmJFc0xVYhttNBD6QsAgHOHCArqGa0AyjrJY=",
         "owner": "numtide",
         "repo": "blueprint",
-        "rev": "06ee7190dc2620ea98af9eb225aa9627b68b0e33",
+        "rev": "56131e8628f173d24a27f6d27c0215eff57e40dd",
         "type": "github"
       },
       "original": {
@@ -23,11 +23,11 @@
     },
     "crane": {
       "locked": {
-        "lastModified": 1772080396,
-        "narHash": "sha256-84W9UNtSk9DNMh43WBkOjpkbfODlmg+RDi854PnNgLE=",
+        "lastModified": 1783203018,
+        "narHash": "sha256-G6R9IT/xwFuu+CYBWDUAok6AdC4ERC4ZfPPFtEpxnZE=",
         "owner": "ipetkov",
         "repo": "crane",
-        "rev": "8525580bc0316c39dbfa18bd09a1331e98c9e463",
+        "rev": "80db5bdc391be8a1794f6d8a2d56e3a84ebcede2",
         "type": "github"
       },
       "original": {
@@ -38,11 +38,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1772173633,
-        "narHash": "sha256-MOH58F4AIbCkh6qlQcwMycyk5SWvsqnS/TCfnqDlpj4=",
+        "lastModified": 1783961503,
+        "narHash": "sha256-w2mhNul1naH3kbPjnMs/rvVA0gFHeCUs8NzmFrA+LUA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "c0f3d81a7ddbc2b1332be0d8481a672b4f6004d6",
+        "rev": "8431ff8a526bba781b711db7ae58ad0e49c38e35",
         "type": "github"
       },
       "original": {
@@ -54,11 +54,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1772082373,
-        "narHash": "sha256-wySf8a6hvuqgFdwvvzPPTARBCMLDz7WFAufGkllD1M4=",
+        "lastModified": 1783915482,
+        "narHash": "sha256-FmieJB8/OUvNxbkboi7+IGfIuSXY3nF/hZQm8kD0r50=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "26eaeac4e409d7b5a6bf6f90a2a2dc223c78d915",
+        "rev": "6cdc7fc76e8bf7fde9fa43a849fcaaa70e230dee",
         "type": "github"
       },
       "original": {
@@ -84,36 +84,18 @@
         "type": "github"
       }
     },
-    "nushell-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1764692655,
-        "narHash": "sha256-XNDEfmvmUNS90PU4e/EWFyJeg428R8nFPJHpF3tgRWo=",
-        "owner": "nushell",
-        "repo": "nushell",
-        "rev": "cde5f7be8c813173e95ea65f96e79a133f587de7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nushell",
-        "ref": "0.109.1",
-        "repo": "nushell",
-        "type": "github"
-      }
-    },
     "nushellWith": {
       "inputs": {
         "crane": "crane",
         "nixpkgs": "nixpkgs_2",
-        "nu-batteries-src": "nu-batteries-src",
-        "nushell-src": "nushell-src"
+        "nu-batteries-src": "nu-batteries-src"
       },
       "locked": {
-        "lastModified": 1772218604,
-        "narHash": "sha256-hELIClkjwkWBmiYZ/DFZytIfQhLoQFIQ7+V5Bb43Rk4=",
+        "lastModified": 1784110971,
+        "narHash": "sha256-C25HNDIu8gnpeNv0djOEk6gnPMit+/bOego49GHIst4=",
         "owner": "YPares",
         "repo": "nushellWith",
-        "rev": "05bcaa60f26954c9217391c63781dd6d2c291877",
+        "rev": "34ff76aa2bc6dca4d8551bbac59652040725d315",
         "type": "github"
       },
       "original": {
