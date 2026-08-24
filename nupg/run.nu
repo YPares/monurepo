@@ -94,7 +94,7 @@ export def desc [
 # functions defined in $env.nupg.conversions.pg_to_nu
 #
 # Will read the db connection string from $env.PSQL_DB_STRING
-export def main [
+export def exec [
   --file (-f): path # Read SQL statement from a file instead
   --no-stored-queries (-S) # Do not use stored queries
   --variables (-v): record = {}
@@ -149,5 +149,3 @@ export def main [
   } |
     raw --variables=$variables ...$params | run-updates $nu_conversions
 }
-
-export alias run_ = main

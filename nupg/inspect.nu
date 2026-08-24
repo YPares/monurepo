@@ -1,6 +1,6 @@
 use std-rfc/kv *
 
-use run.nu run_
+use run.nu exec
 
 def force-get-schema [
 ]: nothing -> table<table_name: string, columns: table<column_name: string, pg_type: string, is_nullable: bool>> {
@@ -12,7 +12,7 @@ def force-get-schema [
    from information_schema.columns
    where table_schema = '($env.PSQL_SCHEMA)'
    group by table_name" |
-    run_ --no-stored-queries |
+    exec --no-stored-queries |
     rename table_name columns
 }
 
@@ -34,11 +34,11 @@ export def schema [
 
 # List available databases
 export def databases []: nothing -> table {
-  "\\list" | run_ raw |
+  "\\list" | exec raw |
     rename -b {str lowercase | str replace " " "_"}
 }
 
 # Show information about current connection
 export def main []: nothing -> string {
-  "\\conninfo" | run_ psql | collect
+  "\\conninfo" | exec psql | collect
 }

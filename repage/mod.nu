@@ -3,25 +3,12 @@ use viewers.nu
 
 export-env {
   $env.repage = {
-    __recorded: null
-
     # How to show (summarized) results of commands
     #
     # Will be used in 'record-and-render'
     display_output: {||
       table -a ((term size).rows * 3 / 8 | into int) | print
     }
-
-    # The types that repage should record as the last result, which
-    # will then be returned by 'repage ans'.
-    # Types not in this list will not be recorded, and thus the last
-    # result will hold its value.
-    # This is to "fiter out" irrelevant data that you might not want
-    # to erase your last result with.
-    #
-    # Setting this to null will force every result to be recorded,
-    # whatever its type, EXCEPT null values
-    recorded_types: [list record table]
 
     # Arguments to be given to 'less'
     # It is a closure so that we can query dynamic values (such as
@@ -80,62 +67,6 @@ export-env {
   }
 }
 
-# Record the value fed via pipeline input, if this value fits some conditions,
-# and then render it with 'table'.
-#
-# To be used as your $env.config.hooks.display_output
-export def --env record-and-render [
-  --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
-]: any -> string {
-  record --force=$force | do $env.repage.display_output 
-}
-
-# Install repage as display_output hook.
-# In this mode, command outputs cannot stream their output anymore.
-export def --env on [] {
-  $env.config.hooks.display_output = {|| record-and-render}
-}
-
-# Remove current display_output hook.
-export def --env off [] {
-  $env.config.hooks.display_output = null
-}
-
-# Record the value fed via pipeline input, if this value fits some conditions,
-# and return it
-export def --env record [
-  --force (-f) # Force recording, even if the type doesn't match $env.repage.recorded_types
-] {
-  [
-    ($in | describe -d)
-    $in
-  ] | if $force or $in.0.type != "nothing" and (
-    $env.repage.recorded_types? == null
-    or $in.0.type in $env.repage.recorded_types
-    or (try { $in.0.subtype?.type in $env.repage.recorded_types }) == true
-      # .subtype may exist but not be a record.
-      # .subtype record exists for streams, and gives the type of the data
-      # when the stream is resolved
-  ) {
-    $env.repage.__recorded = $in.1
-    $in.1
-  } else {
-    $in.1
-  }
-}
-
-# Get the last recorded result
-export def ans [] {
-  $env.repage.__recorded
-}
-
-# Erase the last recorded result
-#
-# Equivalent to 'null | repage record -f'
-export def --env drop [] {
-  $env.repage.__recorded = null
-}
-
 def list-viewers [] {
   $env.repage.viewers | columns
 }
@@ -173,8 +104,8 @@ export def main [
   let viewer = if $select {
     try { list-viewers | input list --fuzzy "Viewer:" }
   } else {$viewer}
-  if $viewer != null and ($env.repage.__recorded? | describe) != nothing {
-    $env.repage.__recorded |
+  if $viewer != null and ($ans.last? | describe) != nothing {
+    $ans.last |
       if ($shown | is-empty) {$in} else {select ...$shown} |
       do $wrap |
       in -v $viewer
@@ -190,11 +121,10 @@ export def render-ans-summary [
   --truncate # Truncate the summary depending on terminal width
   --suffix (-s) = "" # If an output is produced, add this suffix to it
 ] {
-  let ans = $env.repage.__recorded?
-  if ($ans | describe) != nothing {
+  if ($ans.last? | describe) != nothing {
     let width = (term size).columns
   
-    let ans_type = $ans | describe |
+    let ans_type = $ans.last | describe |
       str replace -r '^(\w)\w*<' '$1<' |
       str replace -ra ':\s+\b\w+\b' '' |
       str replace -ra '\s' '' | (
@@ -205,7 +135,7 @@ export def render-ans-summary [
       )
 
     let length = try {
-      $"($ans | length)L "
+      $"($ans.last | length)L "
     } catch {""}
 
     $"($length)(ansi reset)(ansi $color)($ans_type)(ansi reset)($suffix)"

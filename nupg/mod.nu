@@ -1,5 +1,5 @@
 export use run.nu [
-  main
+  exec
   desc
 ]
 export use build.nu [
@@ -14,7 +14,7 @@ use build.nu [
   complete-build
 ]
 use run.nu [
-  run_
+  exec
 ]
 
 export-env {

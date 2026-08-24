@@ -23,7 +23,7 @@ export def revoke [dir: path = "."] {
   ^direnv revoke
 }
 
-def __export [dir: path = "."] {
+def exprt [dir: path = "."] {
   cd $dir
   let proc = ^direnv export json | complete
   let e = if (
@@ -168,5 +168,3 @@ export def default-keybindings [--prefix = "enverlay "] {
     [alt      char_e  (cmd $'($prefix)load')]
   ] | insert mode emacs
 }
-
-export alias export = __export
