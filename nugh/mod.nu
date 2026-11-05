@@ -26,8 +26,10 @@ export def --wrapped prs [
   update author {get login} |
   update statusCheckRollup {
     each {|stat|
-      let concl = mklink ($stat.conclusion | defaults $stat.status "(unknown)") $stat.detailsUrl
-      {workflowName: $stat.workflowName, conclusion: $concl, url: $stat.detailsUrl}
+      if ("detailsUrl" in $stat) {
+        let concl = mklink ($stat.conclusion? | defaults $stat.status? "(unknown)") $stat.detailsUrl
+        {workflowName: $stat.workflowName, conclusion: $concl, url: $stat.detailsUrl}
+      }
     }
   } |
   update title {|pr|
