@@ -40,7 +40,9 @@ def exprt [dir: path = "."] {
 }
 
 export def status [] {
-  ^direnv status --json | from json
+  if (which -a ^direnv | length) > 0 {
+    ^direnv status --json | from json
+  } else {{}}
 }
 
 # Tries to find a .envrc in the given directory, and loads it.
@@ -101,12 +103,12 @@ def direnv-folder [envrc_path] {
 export def render [] {
   let width = (term size).columns
 
-  let state = (status).state
-  let found = $state.foundRC.path?
-  let loaded = if $state.loadedRC.path? != null and $state.loadedRC.allowed == 0 {
+  let state = (status).state?
+  let found = $state.foundRC?.path?
+  let loaded = if $state.loadedRC?.path? != null and $state.loadedRC?.allowed? == 0 {
     $state.loadedRC.path
   }
-  let found_allowed = $state.foundRC.allowed? == 0
+  let found_allowed = $state.foundRC?.allowed? == 0
 
   let envs = [
     ...(
